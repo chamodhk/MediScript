@@ -1,1 +1,0 @@
-# MediScript by Delta Force
