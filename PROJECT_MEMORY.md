@@ -26,14 +26,24 @@
 
 ---
 
+
 ## Running the Project
 
 ### Startup order (run in this exact order)
 
-
+1. LibreTranslate 
+2. Ollama 
+3. Backend: `cd backend && pip install -r requirements.txt && alembic upgrade head && uvicorn main:app --reload --port 8000`
+4. Frontend: `cd frontend && npm install && npm run dev`
 
 ### Ports
 
+| Service | Port |
+|---------|------|
+| Frontend (Vite) | 5173 |
+| Backend (FastAPI) | 8000 |
+| Ollama | 11434 |
+| LibreTranslate | 5000 |
 
 ---
 
@@ -103,9 +113,13 @@
 
 ## Installed Libraries
 
-### Backend 
+### Backend
 
-### Frontend 
+(see `backend/requirements.txt`) FastAPI, uvicorn, SQLAlchemy[asyncio], aiosqlite, pydantic, pydantic-settings, python-multipart, alembic, apscheduler, twilio, openai-whisper, httpx, python-dotenv.
+
+### Frontend
+
+(see `frontend/package.json`) react, react-dom, vite; react-router-dom, axios, fabric; dev: tailwindcss@3, postcss, autoprefixer, eslint.
 
 ---
 
@@ -114,7 +128,9 @@
 
 ## Environment Variables (`.env`)
 
+**Backend** (`backend/.env`): `DATABASE_URL`, `CORS_ORIGINS`, Twilio (`TWILIO_*`), `WHISPER_MODEL`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `LIBRETRANSLATE_URL`, `APP_ENV`.
 
+**Frontend** (`frontend/.env`): `VITE_API_BASE_URL` (default `http://localhost:8000/api`).
 
 ---
 
