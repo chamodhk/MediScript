@@ -8,6 +8,6 @@ python-multipart==0.0.20
 alembic==1.15.2
 apscheduler==3.11.0
 twilio==9.5.2
-openai-whisper==20240930
+faster-whisper>=1.2.0
 httpx==0.28.1
 python-dotenv==1.1.0
