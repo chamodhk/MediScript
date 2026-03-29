@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from core.config import settings, load_env_file
-from backend.routes import twilio_router
+from backend.core.config import settings, load_env_file
+from backend.routers import twilio_router
 
 load_env_file()
 
