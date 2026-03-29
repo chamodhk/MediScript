@@ -26,8 +26,6 @@
 
 ---
 
-<<<<<<< Updated upstream
-=======
 ## Changelog
 
 - **2026-03-29:** Init only (no feature logic). Backend scaffold: `routers/`, `controllers/`, `services/`, `core/`, Alembic async, stubs + `main.py`, `.env`, `requirements.txt`.
@@ -41,7 +39,6 @@
 
 ---
 
->>>>>>> Stashed changes
 ## Running the Project
 
 ### Startup order (run in this exact order)
@@ -155,15 +152,11 @@ Demo patients (pre-seeded with tokens):
 
 ### Backend 
 
-<<<<<<< Updated upstream
-### Frontend 
-=======
 (see `backend/requirements.txt`) FastAPI, uvicorn, SQLAlchemy[asyncio], aiosqlite, pydantic, pydantic-settings, python-multipart, alembic, apscheduler, twilio, openai-whisper, httpx, python-dotenv, passlib[bcrypt], python-jose[cryptography].
 
 ### Frontend
 
 (see `frontend/package.json`) react, react-dom, vite; react-router-dom, axios, fabric; dev: tailwindcss@3, postcss, autoprefixer, eslint.
->>>>>>> Stashed changes
 
 ---
 
