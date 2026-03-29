@@ -11,6 +11,8 @@ from models.prescription import Prescription
 from models.pharmacy import Pharmacy
 from models.reminder import Reminder
 
+from .twilio import SendTranscriptionRequest
+
 __all__ = [
     "UserRole",
     "ConsultationStatus",
@@ -22,4 +24,5 @@ __all__ = [
     "Prescription",
     "Pharmacy",
     "Reminder",
+    "SendTranscriptionRequest",
 ]

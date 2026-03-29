@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from backend.core.config import settings, load_env_file
+from backend.routers import twilio_router
 
-from core.config import settings
+load_env_file()
 
 app = FastAPI(
     title="MediScript API",
@@ -35,7 +37,4 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # app.include_router(translation_router.router, prefix="/api/translation", tags=["Translation"])
 # app.include_router(notification_router.router, prefix="/api/notifications", tags=["Notifications"])
 
-
-@app.get("/", tags=["Health"])
-async def health_check():
-    return {"status": "ok", "service": "MediScript API"}
+app.include_router(twilio_router)
