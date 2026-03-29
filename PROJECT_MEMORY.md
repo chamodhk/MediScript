@@ -32,7 +32,8 @@
 - **2026-03-29:** Frontend scaffold: Vite React, Tailwind v3, react-router-dom, axios, fabric; pages/components/hooks + `api.js`; `frontend/.env`.
 - **2026-03-29:** Root `README.md` + `PROJECT_MEMORY.md` updated (startup, ports, libs, env vars).
 - **2026-03-29:** Demo simplification: receptionist removed; Patient.token pre-seeded. Migrations `3ea0854ac8ee` → `23de54475b85` → `60eabfecebca`. 3 demo patients (T001–T003), 4 users, 2 pharmacies seeded.
-- **2026-03-29:** `UserRole`, `ConsultationStatus`, `ReminderType`, `ReminderStatus` enums; prescription `image_data` + `image_mime_type`.
+- **2026-03-29:** Demystifying theme: Hemas Healthcare brand colors integrated into Tailwind (`tailwind.config.js`) and CSS variables (`src/index.css`).
+- **2026-03-29:** UserRole, `ConsultationStatus`, `ReminderType`, `ReminderStatus` enums; prescription `image_data` + `image_mime_type`.
 
 ---
 
@@ -59,6 +60,20 @@
 ## Architecture
 
 - **Pattern:** Layered MVC — routers → controllers → services
+
+---
+
+## Frontend Theme
+
+**Mandatory:** Use Hemas Healthcare brand colors for all UI components.
+
+| Type | Tailwind Classes | Hex |
+|---|---|---|
+| **Primary** | `bg-hemas-teal`, `text-hemas-teal` | `#025567` |
+| **Accent** | `bg-hemas-orange`, `text-hemas-orange` | `#e75424` |
+| **Surface** | `bg-hemas-navy`, `bg-hemas-dark` | `#112023`, `#081c20` |
+
+See detailed palette in`tailwind.config.js`.
 
 ---
 
