@@ -1,6 +1,6 @@
 import asyncio
-import sys
 import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -12,7 +12,6 @@ from alembic import context
 # Make sure the backend/ directory is on the path so imports work.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import Base and all models so Alembic autogenerate can detect every table.
 from core.database import Base  # noqa: E402
 import models  # noqa: E402, F401 — registers all ORM classes with Base.metadata
 
