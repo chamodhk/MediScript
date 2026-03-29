@@ -10,6 +10,7 @@ AI-powered clinical communication system for Hemas Hospitals.
 ## Core Features
 -  Patient registration (name, phone, preferred language)
 ### Doctor Portal
+-  doctor can find the patient details ( name, consultant history, preferred language)
 -  Start Consultation → triggers consent
 -  Audio recording via browser mic (MediaRecorder API)
 -  Whisper transcription (local, batch after stop)
