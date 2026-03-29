@@ -6,18 +6,14 @@ Run once from the backend/ directory:
 import asyncio
 from datetime import date
 
-import bcrypt
+from sqlalchemy import delete
 
 from core.database import AsyncSessionLocal
+from core.security import hash_password
 from models.enums import UserRole
 from models.pharmacy import Pharmacy
 from models.patient import Patient
 from models.user import User
-
-
-def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
 
 PHARMACIES = [
     {"id": 1, "name": "Pharmacy 1", "is_available": True},
@@ -26,26 +22,32 @@ PHARMACIES = [
 
 DEFAULT_USERS = [
     {
-        "email": "admin@mediscript.lk",
-        "password": "Admin@1234",
+        "email": "admin@mediscript.com",
+        "password": "password@123",
         "full_name": "System Admin",
         "role": UserRole.ADMIN,
     },
     {
-        "email": "doctor@mediscript.lk",
-        "password": "Doctor@1234",
-        "full_name": "Dr. Demo",
+        "email": "doctor1@mediscript.com",
+        "password": "password@123",
+        "full_name": "Dr. One",
         "role": UserRole.DOCTOR,
     },
     {
-        "email": "pharmacy1@mediscript.lk",
-        "password": "Pharma@1234",
+        "email": "doctor2@mediscript.com",
+        "password": "password@123",
+        "full_name": "Dr. Two",
+        "role": UserRole.DOCTOR,
+    },
+    {
+        "email": "pharmacy1@mediscript.com",
+        "password": "password@123",
         "full_name": "Pharmacist One",
         "role": UserRole.PHARMACIST,
     },
     {
-        "email": "pharmacy2@mediscript.lk",
-        "password": "Pharma@1234",
+        "email": "pharmacy2@mediscript.com",
+        "password": "password@123",
         "full_name": "Pharmacist Two",
         "role": UserRole.PHARMACIST,
     },
@@ -93,19 +95,30 @@ async def seed() -> None:
                 print(f"Already exists: {data['name']}")
 
         # Users
+        allowed_emails = [u["email"] for u in DEFAULT_USERS]
+        await session.execute(delete(User).where(User.email.not_in(allowed_emails)))
+        print("Removed non-demo users.")
+
         for u in DEFAULT_USERS:
             result = await session.execute(select(User).where(User.email == u["email"]))
-            if not result.scalar_one_or_none():
-                session.add(User(
-                    email=u["email"],
-                    password_hash=hash_password(u["password"]),
-                    full_name=u["full_name"],
-                    role=u["role"],
-                    is_active=True,
-                ))
+            existing_user = result.scalar_one_or_none()
+            if not existing_user:
+                session.add(
+                    User(
+                        email=u["email"],
+                        password_hash=hash_password(u["password"]),
+                        full_name=u["full_name"],
+                        role=u["role"],
+                        is_active=True,
+                    )
+                )
                 print(f"Seeded user: {u['email']} ({u['role'].value})")
             else:
-                print(f"Already exists: {u['email']}")
+                existing_user.password_hash = hash_password(u["password"])
+                existing_user.full_name = u["full_name"]
+                existing_user.role = u["role"]
+                existing_user.is_active = True
+                print(f"Updated user: {u['email']} ({u['role'].value})")
 
         # Demo patients
         for p in DEMO_PATIENTS:

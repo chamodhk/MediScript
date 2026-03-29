@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from backend.core.config import settings, load_env_file
-from backend.routers import twilio_router
+from backend.routers import auth_router, twilio_router
 
 load_env_file()
 
@@ -38,3 +38,4 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # app.include_router(notification_router.router, prefix="/api/notifications", tags=["Notifications"])
 
 app.include_router(twilio_router)
+app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
