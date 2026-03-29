@@ -34,6 +34,11 @@
 - **2026-03-29:** Demo simplification: receptionist removed; Patient.token pre-seeded. Migrations `3ea0854ac8ee` → `23de54475b85` → `60eabfecebca`. 3 demo patients (T001–T003), 4 users, 2 pharmacies seeded.
 - **2026-03-29:** Demystifying theme: Hemas Healthcare brand colors integrated into Tailwind (`tailwind.config.js`) and CSS variables (`src/index.css`).
 - **2026-03-29:** UserRole, `ConsultationStatus`, `ReminderType`, `ReminderStatus` enums; prescription `image_data` + `image_mime_type`.
+- **2026-03-29:** Auth MVP completed. Login-only JWT auth added (`POST /api/auth/login`, `GET /api/auth/me`), signup removed, role-based `redirectPath` returned (admin/doctor/pharmacist paths).
+- **2026-03-29:** Seed data updated to 5 demo auth users with `.com` emails and shared password `password@123` (admin, doctor1, doctor2, pharmacy1, pharmacy2). Non-demo users are removed during re-seed.
+- **2026-03-29:** Frontend login implemented with Tailwind-styled form, token storage, and route redirects using backend `redirectPath`. Added `/admin` route/page and protected route wrapper.
+- **2026-03-29:** Frontend toolchain stabilized after broken `node_modules` state: `react-router` (v7 package), `vite@5.4.21`, `@vitejs/plugin-react@4.3.4`; production build confirmed.
+- **2026-03-29:** Root `.gitignore` updated to ignore `frontend/node_modules/` and stop tracking dependency tree.
 
 ---
 
@@ -111,14 +116,15 @@ Migrations: `3ea0854ac8ee` → `23de54475b85` (role + prescription image) → `6
 
 Run `python -m core.seed` from `backend/`. Idempotent (safe to re-run).
 
-Seeds: Pharmacy 1, Pharmacy 2, and 4 default users:
+Seeds: Pharmacy 1, Pharmacy 2, and 5 default users:
 
 | email | password | role |
 |---|---|---|
-| admin@mediscript.lk | Admin@1234 | admin |
-| doctor@mediscript.lk | Doctor@1234 | doctor |
-| pharmacy1@mediscript.lk | Pharma@1234 | pharmacist |
-| pharmacy2@mediscript.lk | Pharma@1234 | pharmacist |
+| admin@mediscript.com | password@123 | admin |
+| doctor1@mediscript.com | password@123 | doctor |
+| doctor2@mediscript.com | password@123 | doctor |
+| pharmacy1@mediscript.com | password@123 | pharmacist |
+| pharmacy2@mediscript.com | password@123 | pharmacist |
 
 Demo patients (pre-seeded with tokens):
 
@@ -134,6 +140,8 @@ Demo patients (pre-seeded with tokens):
 
 ### Authorization
 
+- `POST /api/auth/login` (form-data: `username` as email, `password`) → returns `access_token`, `token_type`, `role`, `redirectPath`
+- `GET /api/auth/me` (Bearer token) → returns current user profile (`id`, `email`, `full_name`, `role`, `is_active`)
 
 ---
 
@@ -177,7 +185,7 @@ Demo patients (pre-seeded with tokens):
 
 ### Frontend
 
-(see `frontend/package.json`) react, react-dom, vite; react-router-dom, axios, fabric; dev: tailwindcss@3, postcss, autoprefixer, eslint.
+(see `frontend/package.json`) react, react-dom, react-router, axios, fabric; dev: vite@5.4.21, @vitejs/plugin-react@4.3.4, tailwindcss@3, postcss, autoprefixer, eslint.
 
 ---
 
