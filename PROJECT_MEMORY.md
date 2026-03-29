@@ -26,6 +26,16 @@
 
 ---
 
+## Changelog
+
+- **2026-03-29:** Init only (no feature logic). Backend scaffold: `routers/`, `controllers/`, `services/`, `core/`, Alembic async, stubs + `main.py`, `.env`, `requirements.txt`.
+- **2026-03-29:** Frontend scaffold: Vite React, Tailwind v3, react-router-dom, axios, fabric; pages/components/hooks + `api.js`; `frontend/.env`.
+- **2026-03-29:** Root `README.md` + `PROJECT_MEMORY.md` updated (startup, ports, libs, env vars).
+- **2026-03-29:** Demo simplification: receptionist removed; Patient.token pre-seeded. Migrations `3ea0854ac8ee` → `23de54475b85` → `60eabfecebca`. 3 demo patients (T001–T003), 4 users, 2 pharmacies seeded.
+- **2026-03-29:** Demystifying theme: Hemas Healthcare brand colors integrated into Tailwind (`tailwind.config.js`) and CSS variables (`src/index.css`).
+- **2026-03-29:** UserRole, `ConsultationStatus`, `ReminderType`, `ReminderStatus` enums; prescription `image_data` + `image_mime_type`.
+
+---
 
 ## Running the Project
 
@@ -53,15 +63,44 @@
 
 ---
 
+## Frontend Theme
+
+**Mandatory:** Use Hemas Healthcare brand colors for all UI components.
+
+| Type | Tailwind Classes | Hex |
+|---|---|---|
+| **Primary** | `bg-hemas-teal`, `text-hemas-teal` | `#025567` |
+| **Accent** | `bg-hemas-orange`, `text-hemas-orange` | `#e75424` |
+| **Surface** | `bg-hemas-navy`, `bg-hemas-dark` | `#112023`, `#081c20` |
+
+See detailed palette in`tailwind.config.js`.
+
+---
+
 ## Database
 
 ### Current tables
 
+| Table | Key columns |
+|---|---|
+| `users` | id, email (unique), password_hash, full_name, role (`UserRole` enum: admin/doctor/pharmacist), is_active |
+| `patients` | id, name, phone (unique), preferred_language, date_of_birth, age, token (unique, pre-seeded) |
+| `consultations` | id, patient_id (FK), doctor_id (FK → users), transcript, structured_output (JSON), audio_file_path, status (`ConsultationStatus`) |
+| `prescriptions` | id, consultation_id (FK, unique), pharmacy_id (FK), image_path (optional), image_data (BLOB), image_mime_type (default `image/png`), status |
+| `pharmacies` | id, name, is_available |
+| `reminders` | id, patient_id (FK), consultation_id (FK), message, scheduled_at, sent_at, type (`ReminderType`), status (`ReminderStatus`) |
 
+**DB file:** `backend/mediscript.db`
 
 ### Running migrations
 
+```bash
+# From backend/ directory (use miniconda3 Python until venv is set up)
+/home/rumeshchathuranga/miniconda3/bin/alembic revision --autogenerate -m "describe_change"
+/home/rumeshchathuranga/miniconda3/bin/alembic upgrade head
+```
 
+Migrations: `3ea0854ac8ee` → `23de54475b85` (role + prescription image) → `60eabfecebca` (`ConsultationStatus`, `ReminderType`, `ReminderStatus` enums)
 
 ### ⚠️ Migration rules
 - Never edit an existing file inside `migrations/versions/`
@@ -69,6 +108,25 @@
 - Always run `alembic upgrade head` after every `git pull`
 
 ### Seeding
+
+Run `python -m core.seed` from `backend/`. Idempotent (safe to re-run).
+
+Seeds: Pharmacy 1, Pharmacy 2, and 4 default users:
+
+| email | password | role |
+|---|---|---|
+| admin@mediscript.lk | Admin@1234 | admin |
+| doctor@mediscript.lk | Doctor@1234 | doctor |
+| pharmacy1@mediscript.lk | Pharma@1234 | pharmacist |
+| pharmacy2@mediscript.lk | Pharma@1234 | pharmacist |
+
+Demo patients (pre-seeded with tokens):
+
+| name | phone | language | token |
+|---|---|---|---|
+| Kamal Perera | 0771234567 | Sinhala | T001 |
+| Nimal Silva | 0779876543 | Sinhala | T002 |
+| Amara Fernando | 0712345678 | Tamil | T003 |
 
 ---
 
@@ -115,7 +173,7 @@
 
 ### Backend
 
-(see `backend/requirements.txt`) FastAPI, uvicorn, SQLAlchemy[asyncio], aiosqlite, pydantic, pydantic-settings, python-multipart, alembic, apscheduler, twilio, openai-whisper, httpx, python-dotenv.
+(see `backend/requirements.txt`) FastAPI, uvicorn, SQLAlchemy[asyncio], aiosqlite, pydantic, pydantic-settings, python-multipart, alembic, apscheduler, twilio, openai-whisper, httpx, python-dotenv, passlib[bcrypt], python-jose[cryptography].
 
 ### Frontend
 
