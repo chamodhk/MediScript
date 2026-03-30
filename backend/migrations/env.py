@@ -18,7 +18,11 @@ if config.config_file_name is not None:
 # Import Base from core.database once models are defined.
 # from core.database import Base
 # target_metadata = Base.metadata
-target_metadata = None
+#target_metadata = None
+from core.database import Base
+from models.prescription import Prescription
+
+target_metadata = Base.metadata
 
 # Other values from the config, defined by the needs of env.py, can be
 # acquired: my_important_option = config.get_main_option("my_important_option")
