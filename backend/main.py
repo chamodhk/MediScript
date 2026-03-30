@@ -1,11 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from backend.core.config import settings, load_env_file
+from backend.routers import auth_router, twilio_router
 
-from core.config import settings
-from routers import prescription_router
-
-
+load_env_file()
 
 app = FastAPI(
     title="MediScript API",
@@ -23,8 +22,6 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-app.include_router(prescription_router.router, prefix="/api/prescriptions", tags=["Prescription"]) 
-
 # ── Routers (uncomment as each module is implemented) ─────────────────────────
 # from routers import auth_router, patient_router
 # from routers import transcription_router, nlp_router
@@ -40,9 +37,5 @@ app.include_router(prescription_router.router, prefix="/api/prescriptions", tags
 # app.include_router(translation_router.router, prefix="/api/translation", tags=["Translation"])
 # app.include_router(notification_router.router, prefix="/api/notifications", tags=["Notifications"])
 
-
-@app.get("/", tags=["Health"])
-async def health_check():
-    return {"status": "ok", "service": "MediScript API"}
-
-
+app.include_router(twilio_router)
+app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])

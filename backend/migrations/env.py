@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -7,6 +9,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+# Make sure the backend/ directory is on the path so imports work.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.database import Base  # noqa: E402
+import models  # noqa: E402, F401 — registers all ORM classes with Base.metadata
+
 # Alembic Config object, which provides access to the values within the .ini file.
 config = context.config
 
@@ -14,18 +22,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Add your model's MetaData object here for 'autogenerate' support.
-# Import Base from core.database once models are defined.
-# from core.database import Base
-# target_metadata = Base.metadata
-#target_metadata = None
-from core.database import Base
-from models.prescription import Prescription
-
 target_metadata = Base.metadata
-
-# Other values from the config, defined by the needs of env.py, can be
-# acquired: my_important_option = config.get_main_option("my_important_option")
 
 
 def run_migrations_offline() -> None:
