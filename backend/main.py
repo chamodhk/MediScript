@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from core.config import settings
+from routers import prescription_router
+
+
 
 app = FastAPI(
     title="MediScript API",
@@ -19,6 +22,8 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+app.include_router(prescription_router.router, prefix="/api/prescriptions", tags=["Prescription"]) 
 
 # ── Routers (uncomment as each module is implemented) ─────────────────────────
 # from routers import auth_router, patient_router
@@ -39,3 +44,5 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/", tags=["Health"])
 async def health_check():
     return {"status": "ok", "service": "MediScript API"}
+
+
