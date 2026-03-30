@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from backend.core.config import settings, load_env_file
-from backend.routers import auth_router, twilio_router
+from core.config import settings, load_env_file
+from routers import auth_router, twilio_router, prescription_router
+
 
 load_env_file()
 
@@ -21,6 +22,8 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+app.include_router(prescription_router.router, prefix="/api/prescriptions", tags=["Prescription"]) 
 
 # ── Routers (uncomment as each module is implemented) ─────────────────────────
 # from routers import auth_router, patient_router
