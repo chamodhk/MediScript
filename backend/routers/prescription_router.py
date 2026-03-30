@@ -16,66 +16,35 @@ from controllers.prescription_controller import (
 
 router = APIRouter(prefix="/api", tags=["Prescription"])
 
+@router.post("/prescription", response_model=PrescriptionResponse)
+async def create_prescription(body: PrescriptionCreate, db: AsyncSession = Depends(get_db)):
+    return await save_prescription(
+        consultation_id=body.consultation_id,
+        pharmacy_id=body.pharmacy_id,
+        image_data=body.image_data,
+        image_mime_type=body.image_mime_type,
+        db=db
+    )
+
+@router.get("/prescription/session/{consultation_id}", response_model=PrescriptionResponse)
+async def fetch_by_session(consultation_id: int, db: AsyncSession = Depends(get_db)):
+    return await get_prescriptions_by_session(consultation_id=consultation_id, db=db)
+
+@router.get("/prescription/{prescription_id}", response_model=PrescriptionResponse)
+async def fetch_prescription(prescription_id: int, db: AsyncSession = Depends(get_db)):
+    return await get_prescription(prescription_id=prescription_id, db=db)
+
+@router.patch("/prescription/{prescription_id}", response_model=PrescriptionResponse)
+async def edit_prescription(prescription_id: int, body: PrescriptionUpdate, db: AsyncSession = Depends(get_db)):
+    return await update_prescription(
+        prescription_id=prescription_id,
+        image_data=body.image_data,
+        status=body.status,
+        db=db
+    )
 
 # ─────────────────────────────────────────
 # POST /api/prescription
 # Who calls: canvas page "Save & Return" button
 # ─────────────────────────────────────────
 
-@router.post("/prescription", response_model=PrescriptionResponse)
-async def create_prescription(
-    body: PrescriptionCreate,
-    db: AsyncSession = Depends(get_db)
-):
-    return await save_prescription(
-        session_id=body.session_id,
-        patient_id=body.patient_id,
-        image_data=body.image_data,
-        db=db
-    )
-
-
-# ─────────────────────────────────────────
-# GET /api/prescription/session/{session_id}
-# Who calls: Person A — get all prescriptions for a session
-# NOTE: this route must be ABOVE /{prescription_id}
-# so FastAPI does not confuse "session" as an ID
-# ─────────────────────────────────────────
-
-@router.get("/prescription/session/{session_id}", response_model=PrescriptionResponse)
-async def fetch_by_session(
-    session_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    return await get_prescriptions_by_session(session_id=session_id, db=db)
-
-
-# ─────────────────────────────────────────
-# GET /api/prescription/{prescription_id}
-# Who calls: Person A — get one specific prescription
-# ─────────────────────────────────────────
-
-@router.get("/prescription/{prescription_id}", response_model=PrescriptionResponse)
-async def fetch_prescription(
-    prescription_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    return await get_prescription(prescription_id=prescription_id, db=db)
-
-
-# ─────────────────────────────────────────
-# PATCH /api/prescription/{prescription_id}
-# Who calls: canvas page if doctor redraws
-# ─────────────────────────────────────────
-
-@router.patch("/prescription/{prescription_id}", response_model=PrescriptionResponse)
-async def edit_prescription(
-    prescription_id: str,
-    body: PrescriptionUpdate,
-    db: AsyncSession = Depends(get_db)
-):
-    return await update_prescription(
-        prescription_id=prescription_id,
-        image_data=body.image_data,
-        db=db
-    )

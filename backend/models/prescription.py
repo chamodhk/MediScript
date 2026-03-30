@@ -33,3 +33,26 @@ class Prescription(Base):
 
     def __repr__(self) -> str:
         return f"<Prescription id={self.id} status={self.status!r} pharmacy_id={self.pharmacy_id}>"
+
+from pydantic import BaseModel, ConfigDict
+
+class PrescriptionCreate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    consultation_id: int
+    pharmacy_id: int
+    image_data: Optional[str] = None
+    image_mime_type: Optional[str] = "image/png"
+
+class PrescriptionUpdate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    image_data: Optional[str] = None
+    status: Optional[str] = None
+
+class PrescriptionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="allow")
+    id: int
+    consultation_id: int
+    pharmacy_id: int
+    status: str
+    image_path: Optional[str] = None
+    image_mime_type: str
