@@ -209,3 +209,11 @@ __marimo__/
 
 #codex
 .codex
+
+# Audio files
+temp/*.wav
+temp/*.mp3
+temp/*.m4a
+temp/*.ogg
+*.wav
+*.mp3
