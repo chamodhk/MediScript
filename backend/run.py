@@ -26,9 +26,18 @@ def main() -> None:
     os.chdir(BACKEND_DIR)
 
     # backend.* imports need repo root; models.* and core.* need backend on path
+    # Note: uvicorn reload can spawn a new process, so we also set PYTHONPATH
+    # to make sure imports keep working in the reloader child.
     for path in (str(BACKEND_DIR), str(REPO_ROOT)):
         if path not in sys.path:
             sys.path.insert(0, path)
+
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    preferred_pythonpath = f"{BACKEND_DIR}:{REPO_ROOT}"
+    if preferred_pythonpath not in existing_pythonpath.split(":"):
+        os.environ["PYTHONPATH"] = (
+            f"{preferred_pythonpath}:{existing_pythonpath}" if existing_pythonpath else preferred_pythonpath
+        )
 
     import uvicorn
 

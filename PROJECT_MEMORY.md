@@ -7,12 +7,12 @@
 
 ## Team
 
-| Person | Domain | Slices |
-|---|---|---|
-| Person A | Setup + Pharmacy portal | Auth, DB, Migrations, Pharmacy routing |
-| Person B | Full AI / ML pipeline | Whisper transcription, Ollama NLP structuring |
-| Person C | Full doctor experience | Doctor portal UI flow, Prescription canvas |
-| Person D | Notifications pipeline | Translation, WhatsApp, Reminders |
+| Person   | Domain                  | Slices                                        |
+| -------- | ----------------------- | --------------------------------------------- |
+| Person A | Setup + Pharmacy portal | Auth, DB, Migrations, Pharmacy routing        |
+| Person B | Full AI / ML pipeline   | Whisper transcription, Ollama NLP structuring |
+| Person C | Full doctor experience  | Doctor portal UI flow, Prescription canvas    |
+| Person D | Notifications pipeline  | Translation, WhatsApp, Reminders              |
 
 ---
 
@@ -46,19 +46,21 @@
 
 ### Startup order (run in this exact order)
 
-1. LibreTranslate 
-2. Ollama 
-3. Backend: `cd backend && pip install -r requirements.txt && alembic upgrade head && uvicorn main:app --reload --port 8000`
+1. LibreTranslate
+2. Ollama
+3. Backend: `cd backend && ./.venv/bin/alembic upgrade head && ./.venv/bin/python run.py`
 4. Frontend: `cd frontend && npm install && npm run dev`
+
+Note: always use `backend/.venv` (Python 3.12) for migrations/server. The repo-root `.venv` (Python 3.14) can trigger a SQLAlchemy typing crash during `alembic upgrade head`.
 
 ### Ports
 
-| Service | Port |
-|---------|------|
-| Frontend (Vite) | 5173 |
-| Backend (FastAPI) | 8000 |
-| Ollama | 11434 |
-| LibreTranslate | 5000 |
+| Service           | Port  |
+| ----------------- | ----- |
+| Frontend (Vite)   | 5173  |
+| Backend (FastAPI) | 8000  |
+| Ollama            | 11434 |
+| LibreTranslate    | 5000  |
 
 ---
 
@@ -72,11 +74,11 @@
 
 **Mandatory:** Use Hemas Healthcare brand colors for all UI components.
 
-| Type | Tailwind Classes | Hex |
-|---|---|---|
-| **Primary** | `bg-hemas-teal`, `text-hemas-teal` | `#025567` |
-| **Accent** | `bg-hemas-orange`, `text-hemas-orange` | `#e75424` |
-| **Surface** | `bg-hemas-navy`, `bg-hemas-dark` | `#112023`, `#081c20` |
+| Type        | Tailwind Classes                       | Hex                  |
+| ----------- | -------------------------------------- | -------------------- |
+| **Primary** | `bg-hemas-teal`, `text-hemas-teal`     | `#025567`            |
+| **Accent**  | `bg-hemas-orange`, `text-hemas-orange` | `#e75424`            |
+| **Surface** | `bg-hemas-navy`, `bg-hemas-dark`       | `#112023`, `#081c20` |
 
 See detailed palette in`tailwind.config.js`.
 
@@ -86,14 +88,14 @@ See detailed palette in`tailwind.config.js`.
 
 ### Current tables
 
-| Table | Key columns |
-|---|---|
-| `users` | id, email (unique), password_hash, full_name, role (`UserRole` enum: admin/doctor/pharmacist), is_active |
-| `patients` | id, name, phone (unique), preferred_language, date_of_birth, age, token (unique, pre-seeded) |
-| `consultations` | id, patient_id (FK), doctor_id (FK → users), transcript, structured_output (JSON), audio_file_path, status (`ConsultationStatus`) |
+| Table           | Key columns                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | id, email (unique), password_hash, full_name, role (`UserRole` enum: admin/doctor/pharmacist), is_active                                    |
+| `patients`      | id, name, phone (unique), preferred_language, date_of_birth, age, token (unique, pre-seeded)                                                |
+| `consultations` | id, patient_id (FK), doctor_id (FK → users), transcript, structured_output (JSON), audio_file_path, status (`ConsultationStatus`)           |
 | `prescriptions` | id, consultation_id (FK, unique), pharmacy_id (FK), image_path (optional), image_data (BLOB), image_mime_type (default `image/png`), status |
-| `pharmacies` | id, name, is_available |
-| `reminders` | id, patient_id (FK), consultation_id (FK), message, scheduled_at, sent_at, type (`ReminderType`), status (`ReminderStatus`) |
+| `pharmacies`    | id, name, is_available                                                                                                                      |
+| `reminders`     | id, patient_id (FK), consultation_id (FK), message, scheduled_at, sent_at, type (`ReminderType`), status (`ReminderStatus`)                 |
 
 **DB file:** `backend/mediscript.db`
 
@@ -108,31 +110,32 @@ See detailed palette in`tailwind.config.js`.
 Migrations: `3ea0854ac8ee` → `23de54475b85` (role + prescription image) → `60eabfecebca` (`ConsultationStatus`, `ReminderType`, `ReminderStatus` enums)
 
 ### ⚠️ Migration rules
+
 - Never edit an existing file inside `migrations/versions/`
 - Always generate a new migration file for every model change
 - Always run `alembic upgrade head` after every `git pull`
 
 ### Seeding
 
-Run `python -m core.seed` from `backend/`. Idempotent (safe to re-run).
+Run `cd backend && ./.venv/bin/python -m core.seed`. Idempotent (safe to re-run).
 
 Seeds: Pharmacy 1, Pharmacy 2, and 5 default users:
 
-| email | password | role |
-|---|---|---|
-| admin@mediscript.com | password@123 | admin |
-| doctor1@mediscript.com | password@123 | doctor |
-| doctor2@mediscript.com | password@123 | doctor |
+| email                    | password     | role       |
+| ------------------------ | ------------ | ---------- |
+| admin@mediscript.com     | password@123 | admin      |
+| doctor1@mediscript.com   | password@123 | doctor     |
+| doctor2@mediscript.com   | password@123 | doctor     |
 | pharmacy1@mediscript.com | password@123 | pharmacist |
 | pharmacy2@mediscript.com | password@123 | pharmacist |
 
 Demo patients (pre-seeded with tokens):
 
-| name | phone | language | token |
-|---|---|---|---|
-| Kamal Perera | 0771234567 | Sinhala | T001 |
-| Nimal Silva | 0779876543 | Sinhala | T002 |
-| Amara Fernando | 0712345678 | Tamil | T003 |
+| name           | phone      | language | token |
+| -------------- | ---------- | -------- | ----- |
+| Kamal Perera   | 0771234567 | Sinhala  | T001  |
+| Nimal Silva    | 0779876543 | Sinhala  | T002  |
+| Amara Fernando | 0712345678 | Tamil    | T003  |
 
 ---
 
@@ -145,7 +148,7 @@ Demo patients (pre-seeded with tokens):
 
 ---
 
-### Patients 
+### Patients
 
 ---
 
@@ -165,15 +168,15 @@ Demo patients (pre-seeded with tokens):
 
 ---
 
-### Pharmacy 
+### Pharmacy
 
 ---
 
-### Translation 
+### Translation
 
 ---
 
-### Notifications 
+### Notifications
 
 ---
 
@@ -189,9 +192,6 @@ Demo patients (pre-seeded with tokens):
 
 ---
 
-
-
-
 ## Environment Variables (`.env`)
 
 **Backend** (`backend/.env`): `DATABASE_URL`, `CORS_ORIGINS`, Twilio (`TWILIO_*`), `WHISPER_MODEL`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `LIBRETRANSLATE_URL`, `APP_ENV`.
@@ -200,6 +200,4 @@ Demo patients (pre-seeded with tokens):
 
 ---
 
-## MCP Servers 
-
-
+## MCP Servers
