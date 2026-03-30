@@ -7,12 +7,12 @@
 
 ## Team
 
-| Person | Domain | Slices |
-|---|---|---|
-| Person A | Setup + Pharmacy portal | Auth, DB, Migrations, Pharmacy routing |
-| Person B | Full AI / ML pipeline | Whisper transcription, Ollama NLP structuring |
-| Person C | Full doctor experience | Doctor portal UI flow, Prescription canvas |
-| Person D | Notifications pipeline | Translation, WhatsApp, Reminders |
+| Person   | Domain                  | Slices                                        |
+| -------- | ----------------------- | --------------------------------------------- |
+| Person A | Setup + Pharmacy portal | Auth, DB, Migrations, Pharmacy routing        |
+| Person B | Full AI / ML pipeline   | Whisper transcription, Ollama NLP structuring |
+| Person C | Full doctor experience  | Doctor portal UI flow, Prescription canvas    |
+| Person D | Notifications pipeline  | Translation, WhatsApp, Reminders              |
 
 ---
 
@@ -34,6 +34,11 @@
 - **2026-03-29:** Demo simplification: receptionist removed; Patient.token pre-seeded. Migrations `3ea0854ac8ee` → `23de54475b85` → `60eabfecebca`. 3 demo patients (T001–T003), 4 users, 2 pharmacies seeded.
 - **2026-03-29:** Demystifying theme: Hemas Healthcare brand colors integrated into Tailwind (`tailwind.config.js`) and CSS variables (`src/index.css`).
 - **2026-03-29:** UserRole, `ConsultationStatus`, `ReminderType`, `ReminderStatus` enums; prescription `image_data` + `image_mime_type`.
+- **2026-03-29:** Auth MVP completed. Login-only JWT auth added (`POST /api/auth/login`, `GET /api/auth/me`), signup removed, role-based `redirectPath` returned (admin/doctor/pharmacist paths).
+- **2026-03-29:** Seed data updated to 5 demo auth users with `.com` emails and shared password `password@123` (admin, doctor1, doctor2, pharmacy1, pharmacy2). Non-demo users are removed during re-seed.
+- **2026-03-29:** Frontend login implemented with Tailwind-styled form, token storage, and route redirects using backend `redirectPath`. Added `/admin` route/page and protected route wrapper.
+- **2026-03-29:** Frontend toolchain stabilized after broken `node_modules` state: `react-router` (v7 package), `vite@5.4.21`, `@vitejs/plugin-react@4.3.4`; production build confirmed.
+- **2026-03-29:** Root `.gitignore` updated to ignore `frontend/node_modules/` and stop tracking dependency tree.
 
 ---
 
@@ -41,19 +46,21 @@
 
 ### Startup order (run in this exact order)
 
-1. LibreTranslate 
-2. Ollama 
-3. Backend: `cd backend && pip install -r requirements.txt && alembic upgrade head && uvicorn main:app --reload --port 8000`
+1. LibreTranslate
+2. Ollama
+3. Backend: `cd backend && ./.venv/bin/alembic upgrade head && ./.venv/bin/python run.py`
 4. Frontend: `cd frontend && npm install && npm run dev`
+
+Note: always use `backend/.venv` (Python 3.12) for migrations/server. The repo-root `.venv` (Python 3.14) can trigger a SQLAlchemy typing crash during `alembic upgrade head`.
 
 ### Ports
 
-| Service | Port |
-|---------|------|
-| Frontend (Vite) | 5173 |
-| Backend (FastAPI) | 8000 |
-| Ollama | 11434 |
-| LibreTranslate | 5000 |
+| Service           | Port  |
+| ----------------- | ----- |
+| Frontend (Vite)   | 5173  |
+| Backend (FastAPI) | 8000  |
+| Ollama            | 11434 |
+| LibreTranslate    | 5000  |
 
 ---
 
@@ -67,11 +74,11 @@
 
 **Mandatory:** Use Hemas Healthcare brand colors for all UI components.
 
-| Type | Tailwind Classes | Hex |
-|---|---|---|
-| **Primary** | `bg-hemas-teal`, `text-hemas-teal` | `#025567` |
-| **Accent** | `bg-hemas-orange`, `text-hemas-orange` | `#e75424` |
-| **Surface** | `bg-hemas-navy`, `bg-hemas-dark` | `#112023`, `#081c20` |
+| Type        | Tailwind Classes                       | Hex                  |
+| ----------- | -------------------------------------- | -------------------- |
+| **Primary** | `bg-hemas-teal`, `text-hemas-teal`     | `#025567`            |
+| **Accent**  | `bg-hemas-orange`, `text-hemas-orange` | `#e75424`            |
+| **Surface** | `bg-hemas-navy`, `bg-hemas-dark`       | `#112023`, `#081c20` |
 
 See detailed palette in`tailwind.config.js`.
 
@@ -81,14 +88,14 @@ See detailed palette in`tailwind.config.js`.
 
 ### Current tables
 
-| Table | Key columns |
-|---|---|
-| `users` | id, email (unique), password_hash, full_name, role (`UserRole` enum: admin/doctor/pharmacist), is_active |
-| `patients` | id, name, phone (unique), preferred_language, date_of_birth, age, token (unique, pre-seeded) |
-| `consultations` | id, patient_id (FK), doctor_id (FK → users), transcript, structured_output (JSON), audio_file_path, status (`ConsultationStatus`) |
+| Table           | Key columns                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | id, email (unique), password_hash, full_name, role (`UserRole` enum: admin/doctor/pharmacist), is_active                                    |
+| `patients`      | id, name, phone (unique), preferred_language, date_of_birth, age, token (unique, pre-seeded)                                                |
+| `consultations` | id, patient_id (FK), doctor_id (FK → users), transcript, structured_output (JSON), audio_file_path, status (`ConsultationStatus`)           |
 | `prescriptions` | id, consultation_id (FK, unique), pharmacy_id (FK), image_path (optional), image_data (BLOB), image_mime_type (default `image/png`), status |
-| `pharmacies` | id, name, is_available |
-| `reminders` | id, patient_id (FK), consultation_id (FK), message, scheduled_at, sent_at, type (`ReminderType`), status (`ReminderStatus`) |
+| `pharmacies`    | id, name, is_available                                                                                                                      |
+| `reminders`     | id, patient_id (FK), consultation_id (FK), message, scheduled_at, sent_at, type (`ReminderType`), status (`ReminderStatus`)                 |
 
 **DB file:** `backend/mediscript.db`
 
@@ -103,30 +110,32 @@ See detailed palette in`tailwind.config.js`.
 Migrations: `3ea0854ac8ee` → `23de54475b85` (role + prescription image) → `60eabfecebca` (`ConsultationStatus`, `ReminderType`, `ReminderStatus` enums)
 
 ### ⚠️ Migration rules
+
 - Never edit an existing file inside `migrations/versions/`
 - Always generate a new migration file for every model change
 - Always run `alembic upgrade head` after every `git pull`
 
 ### Seeding
 
-Run `python -m core.seed` from `backend/`. Idempotent (safe to re-run).
+Run `cd backend && ./.venv/bin/python -m core.seed`. Idempotent (safe to re-run).
 
-Seeds: Pharmacy 1, Pharmacy 2, and 4 default users:
+Seeds: Pharmacy 1, Pharmacy 2, and 5 default users:
 
-| email | password | role |
-|---|---|---|
-| admin@mediscript.lk | Admin@1234 | admin |
-| doctor@mediscript.lk | Doctor@1234 | doctor |
-| pharmacy1@mediscript.lk | Pharma@1234 | pharmacist |
-| pharmacy2@mediscript.lk | Pharma@1234 | pharmacist |
+| email                    | password     | role       |
+| ------------------------ | ------------ | ---------- |
+| admin@mediscript.com     | password@123 | admin      |
+| doctor1@mediscript.com   | password@123 | doctor     |
+| doctor2@mediscript.com   | password@123 | doctor     |
+| pharmacy1@mediscript.com | password@123 | pharmacist |
+| pharmacy2@mediscript.com | password@123 | pharmacist |
 
 Demo patients (pre-seeded with tokens):
 
-| name | phone | language | token |
-|---|---|---|---|
-| Kamal Perera | 0771234567 | Sinhala | T001 |
-| Nimal Silva | 0779876543 | Sinhala | T002 |
-| Amara Fernando | 0712345678 | Tamil | T003 |
+| name           | phone      | language | token |
+| -------------- | ---------- | -------- | ----- |
+| Kamal Perera   | 0771234567 | Sinhala  | T001  |
+| Nimal Silva    | 0779876543 | Sinhala  | T002  |
+| Amara Fernando | 0712345678 | Tamil    | T003  |
 
 ---
 
@@ -134,10 +143,12 @@ Demo patients (pre-seeded with tokens):
 
 ### Authorization
 
+- `POST /api/auth/login` (form-data: `username` as email, `password`) → returns `access_token`, `token_type`, `role`, `redirectPath`
+- `GET /api/auth/me` (Bearer token) → returns current user profile (`id`, `email`, `full_name`, `role`, `is_active`)
 
 ---
 
-### Patients 
+### Patients
 
 ---
 
@@ -157,15 +168,15 @@ Demo patients (pre-seeded with tokens):
 
 ---
 
-### Pharmacy 
+### Pharmacy
 
 ---
 
-### Translation 
+### Translation
 
 ---
 
-### Notifications 
+### Notifications
 
 ---
 
@@ -177,12 +188,9 @@ Demo patients (pre-seeded with tokens):
 
 ### Frontend
 
-(see `frontend/package.json`) react, react-dom, vite; react-router-dom, axios, fabric; dev: tailwindcss@3, postcss, autoprefixer, eslint.
+(see `frontend/package.json`) react, react-dom, react-router, axios, fabric; dev: vite@5.4.21, @vitejs/plugin-react@4.3.4, tailwindcss@3, postcss, autoprefixer, eslint.
 
 ---
-
-
-
 
 ## Environment Variables (`.env`)
 
@@ -192,6 +200,4 @@ Demo patients (pre-seeded with tokens):
 
 ---
 
-## MCP Servers 
-
-
+## MCP Servers
