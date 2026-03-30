@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 
 import LoginPage from "./pages/LoginPage";
-import DoctorPortal from "./pages/DoctorPortal";
 import PharmacyPortal from "./pages/PharmacyPortal";
+import MediScriptDashboard from "./pages/MediScriptDashboard";
+import WritingPad from "./pages/WritingPad";
 import AdminPortal from "./pages/AdminPortal";
 
 function ProtectedRoute({ children }) {
