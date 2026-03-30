@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from  typing import List
 
 from core.database import get_db
 from models.prescription import (
@@ -26,10 +27,17 @@ async def create_prescription(body: PrescriptionCreate, db: AsyncSession = Depen
         db=db
     )
 
-@router.get("/prescription/session/{consultation_id}", response_model=PrescriptionResponse)
-async def fetch_by_session(consultation_id: int, db: AsyncSession = Depends(get_db)):
-    return await get_prescriptions_by_session(consultation_id=consultation_id, db=db)
+from typing import List
 
+@router.get("/session/{consultation_id}", response_model=List[PrescriptionResponse])
+async def fetch_by_session(
+    consultation_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    return await get_prescriptions_by_session(
+        consultation_id=consultation_id,
+        db=db
+    )
 @router.get("/prescription/{prescription_id}", response_model=PrescriptionResponse)
 async def fetch_prescription(prescription_id: int, db: AsyncSession = Depends(get_db)):
     return await get_prescription(prescription_id=prescription_id, db=db)
