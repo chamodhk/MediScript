@@ -40,12 +40,19 @@ export default function MediScriptPrescriptionCanvas() {
   const [canvasMode, setCanvasMode] = useState("standard");
   const [addedMeds, setAddedMeds] = useState([]);
   const [savedImage, setSavedImage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [savedPrescriptionId, setSavedPrescriptionId] = useState(null);
 
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
+
+  const CONSULTATION_ID = 1;
+  const PHARMACY_ID = 1;
+  const API_BASE = "http://127.0.0.1:8000";
 
   const colors = useMemo(() => ["#111827", "#1d4ed8", "#e11d48"], []);
   const sizes = useMemo(() => [4, 6, 10], []);
@@ -57,8 +64,7 @@ export default function MediScriptPrescriptionCanvas() {
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       const rect = parent.getBoundingClientRect();
-
-      const oldImage = canvas.toDataURL("image/png");
+      const oldImage = canvas.width > 0 && canvas.height > 0 ? canvas.toDataURL("image/png") : null;
 
       canvas.width = Math.max(900, Math.floor(rect.width - 8));
       canvas.height = 640;
@@ -70,7 +76,7 @@ export default function MediScriptPrescriptionCanvas() {
       if (oldImage && oldImage !== "data:,") {
         const img = new Image();
         img.onload = () => {
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
         img.src = oldImage;
       }
@@ -79,13 +85,13 @@ export default function MediScriptPrescriptionCanvas() {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     saveCanvasState();
+    loadLatestPrescription();
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
     };
   }, []);
 
-  // ✅ FIXED: scale pointer coords by canvas pixel-to-CSS-display ratio
   const getCoordinates = (event) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -107,7 +113,7 @@ export default function MediScriptPrescriptionCanvas() {
 
   const saveCanvasState = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return;
 
     const imageData = canvas.toDataURL("image/png");
     undoStackRef.current.push(imageData);
@@ -128,7 +134,7 @@ export default function MediScriptPrescriptionCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
 
     img.src = imageData;
@@ -159,12 +165,7 @@ export default function MediScriptPrescriptionCanvas() {
     ctx.lineWidth = brushSize;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-
-    if (tool === "eraser") {
-      ctx.strokeStyle = "#ffffff";
-    } else {
-      ctx.strokeStyle = brushColor;
-    }
+    ctx.strokeStyle = tool === "eraser" ? "#ffffff" : brushColor;
 
     ctx.beginPath();
     ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
@@ -221,26 +222,97 @@ export default function MediScriptPrescriptionCanvas() {
     setSavedImage("");
   };
 
-  const handleValidateHandwriting = () => {
-    const canvas = canvasRef.current;
-    const imageData = canvas.toDataURL("image/png");
-    console.log("Validate handwriting image:", imageData);
-    alert("Canvas image prepared for handwriting validation. Check console.");
+  const loadLatestPrescription = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/prescriptions/session/${CONSULTATION_ID}`);
+      if (!res.ok) {
+        throw new Error("Failed to load previous prescriptions");
+      }
+
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const latest = data[0];
+        setSavedPrescriptionId(latest.id ?? null);
+
+        if (latest.image_data_b64) {
+          setSavedImage(latest.image_data_b64);
+          restoreCanvasState(latest.image_data_b64);
+        }
+      }
+    } catch (error) {
+      console.error("Load prescriptions error:", error);
+    }
   };
 
-  const handleSavePrescription = () => {
-    const canvas = canvasRef.current;
-    const imageData = canvas.toDataURL("image/png");
-    setSavedImage(imageData);
+  const handleValidateHandwriting = async () => {
+    const imageData = canvasRef.current.toDataURL("image/png");
+    setIsValidating(true);
 
-    console.log("Save to backend:", {
-      consultation_id: 1,
-      pharmacy_id: 1,
-      image_data: imageData,
-      image_mime_type: "image/png",
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/prescriptions/validate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image_data: imageData,
+        }),
+      });
 
-    alert("Canvas image prepared. Check console for payload.");
+      if (!res.ok) {
+        throw new Error("Validation failed");
+      }
+
+      const data = await res.json();
+      console.log("Validation result:", data);
+      alert("Handwriting validated. Check console for result.");
+    } catch (error) {
+      console.error("Validation error:", error);
+      alert(`Failed to validate handwriting: ${error.message}`);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleSavePrescription = async () => {
+    const imageData = canvasRef.current.toDataURL("image/png");
+    setIsSaving(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/prescriptions/prescription`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          consultation_id: CONSULTATION_ID,
+          pharmacy_id: PHARMACY_ID,
+          image_data: imageData,
+          image_mime_type: "image/png",
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Save failed");
+      }
+
+      const data = await res.json();
+      setSavedPrescriptionId(data.id ?? null);
+
+      if (data.image_data_b64) {
+        setSavedImage(data.image_data_b64);
+      } else {
+        setSavedImage(imageData);
+      }
+
+      alert("Prescription saved successfully");
+    } catch (error) {
+      console.error("Save error:", error);
+      alert(`Failed to save prescription: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -506,9 +578,10 @@ export default function MediScriptPrescriptionCanvas() {
 
                 <button
                   onClick={handleValidateHandwriting}
-                  className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                  disabled={isValidating}
+                  className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
                 >
-                  Validate Handwriting
+                  {isValidating ? "Validating..." : "Validate Handwriting"}
                 </button>
               </div>
             </div>
@@ -578,6 +651,7 @@ export default function MediScriptPrescriptionCanvas() {
             <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-6 text-sm text-slate-600">
                 <span>Session: #RH-Henderson-Active</span>
+                {savedPrescriptionId && <span>Prescription ID: #{savedPrescriptionId}</span>}
 
                 <button className="flex items-center gap-2 font-medium hover:text-slate-900">
                   <Printer className="h-4 w-4" />
@@ -600,10 +674,11 @@ export default function MediScriptPrescriptionCanvas() {
 
                 <button
                   onClick={handleSavePrescription}
-                  className="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                  disabled={isSaving}
+                  className="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   <CheckCircle2 className="h-5 w-5" />
-                  Save & Attach to Patient Record
+                  {isSaving ? "Saving..." : "Save & Attach to Patient Record"}
                 </button>
               </div>
             </div>
