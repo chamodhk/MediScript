@@ -5,6 +5,7 @@ import PharmacyPortal from "./pages/PharmacyPortal";
 import MediScriptDashboard from "./pages/MediScriptDashboard";
 import WritingPad from "./pages/WritingPad";
 import AdminPortal from "./pages/AdminPortal";
+import MediScriptPrescriptionCanvas from "./pages/MediscriptionCanvas";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("accessToken");
@@ -31,8 +32,16 @@ export default function App() {
           path="/doctor"
           element={
             <ProtectedRoute>
-              <DoctorPortal />
+              <MediScriptDashboard />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/writingpad"
+          element={
+            
+              <MediScriptPrescriptionCanvas />
+            
           }
         />
         <Route
@@ -51,6 +60,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
