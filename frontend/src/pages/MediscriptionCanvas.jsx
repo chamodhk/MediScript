@@ -78,7 +78,6 @@ export default function MediScriptPrescriptionCanvas() {
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
-
     saveCanvasState();
 
     return () => {
@@ -86,20 +85,23 @@ export default function MediScriptPrescriptionCanvas() {
     };
   }, []);
 
+  // ✅ FIXED: scale pointer coords by canvas pixel-to-CSS-display ratio
   const getCoordinates = (event) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
 
     if (event.touches && event.touches.length > 0) {
       return {
-        x: event.touches[0].clientX - rect.left,
-        y: event.touches[0].clientY - rect.top,
+        x: (event.touches[0].clientX - rect.left) * scaleX,
+        y: (event.touches[0].clientY - rect.top) * scaleY,
       };
     }
 
     return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY,
     };
   };
 

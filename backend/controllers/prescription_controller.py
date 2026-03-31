@@ -2,7 +2,6 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.prescription import Prescription
-
 async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime_type, db: AsyncSession):
     try:
         record = Prescription(
