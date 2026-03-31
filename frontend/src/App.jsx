@@ -31,7 +31,7 @@ export default function App() {
           path="/doctor"
           element={
             <ProtectedRoute>
-              <DoctorPortal />
+              <MediScriptDashboard />
             </ProtectedRoute>
           }
         />

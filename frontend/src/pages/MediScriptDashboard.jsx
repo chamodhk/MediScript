@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useAudioRecorder } from "../hooks/useAudioRecorder";
+import api from "../services/api";
 
 // ── Icons (inline SVG helpers) ────────────────────────────────────────────────
 const Icon = ({ d, size = 16, color = "currentColor", ...rest }) => (
@@ -611,7 +613,10 @@ export default function MediScriptDashboard() {
   const [patientId, setPatientId] = useState("");
   const [patient, setPatient] = useState(null);
   const [timer, setTimer] = useState(0);
+  const [transcript, setTranscript] = useState(null);
+  const [loading, setLoading] = useState(false);
   const intervalRef = useRef(null);
+  const { isRecording, audioBlob, startRecording: recordStart, stopRecording: recordStop, setAudioBlob } = useAudioRecorder();
 
   const loadPatient = () => {
     const p = PATIENTS[patientId.trim()];
@@ -623,16 +628,55 @@ export default function MediScriptDashboard() {
     }
   };
 
-  const startRecording = () => {
+  const sendAudioToBackend = async (audioData) => {
+    if (!audioData || !patient || !patient.id) return;
+    
+    setLoading(true);
+    try {
+      // Create FormData with audio file
+      const formData = new FormData();
+      formData.append("audio", audioData, "recording.webm");
+
+      // Send to backend with patient ID
+      // Don't set Content-Type header - let axios/browser handle it for multipart
+      const response = await api.post(
+        `/transcription/transcribe/${patient.id}`,
+        formData
+      );
+
+      // Handle response
+      if (response.data.raw_transcript) {
+        setTranscript(response.data);
+        console.log("Transcription successful:", response.data);
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      alert(`Transcription failed: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoading(false);
+      setAudioBlob(null);
+    }
+  };
+
+  const startRecording = async () => {
     setTimer(0);
     setAppState(STATES.RECORDING);
     intervalRef.current = setInterval(() => setTimer(t => t + 1), 1000);
+    await recordStart();
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     clearInterval(intervalRef.current);
+    await recordStop();
     setAppState(STATES.PROCESSING);
   };
+
+  // Auto-send audio to backend when recording stops and audioBlob is ready
+  useEffect(() => {
+    if (audioBlob && appState === STATES.PROCESSING && patient?.id && !loading) {
+      sendAudioToBackend(audioBlob);
+    }
+  }, [audioBlob, appState, patient?.id, loading]);
 
   useEffect(() => () => clearInterval(intervalRef.current), []);
 
@@ -647,6 +691,8 @@ export default function MediScriptDashboard() {
     setPatient(null);
     setPatientId("");
     setTimer(0);
+    setTranscript(null);
+    setLoading(false);
     setAppState(STATES.IDLE);
   };
 
@@ -959,7 +1005,7 @@ export default function MediScriptDashboard() {
                         <MicIcon size={26} color="#2563eb" />
                       </div>
                       <div className="listening-title">Listening...</div>
-                      <div className="listening-sub">Recording is in progress. The AI will generate a complete transcript once you stop recording.</div>
+                      <div className="listening-sub">Recording is in progress.</div>
                     </div>
                   </div>
                 </div>
@@ -994,23 +1040,66 @@ export default function MediScriptDashboard() {
                           <div className="card-title">Post-Session Transcription</div>
                         </div>
                       </div>
-                      <div className="processing-center">
-                        <div className="spin-ring">
-                          <svg viewBox="0 0 70 70" width="70" height="70">
-                            <circle cx="35" cy="35" r="30" fill="none" stroke="#bfdbfe" strokeWidth="4" />
-                            <circle cx="35" cy="35" r="30" fill="none" stroke="#2563eb" strokeWidth="4"
-                              strokeDasharray="80 110" strokeLinecap="round" />
-                          </svg>
-                          <div className="spin-inner-mic"><MicIcon size={22} color="#2563eb" /></div>
+                      {transcript ? (
+                        <div className="transcript-text">
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>
+                              Raw Transcript
+                            </div>
+                            <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
+                              {transcript.raw_transcript}
+                            </p>
+                          </div>
+                          {transcript.structured && (
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>
+                                Structured Output
+                              </div>
+                              <pre style={{ fontSize: 12, background: "#f8fafc", padding: 12, borderRadius: 6, overflow: "auto", maxHeight: 300 }}>
+                                {typeof transcript.structured === 'string' 
+                                  ? JSON.stringify(JSON.parse(transcript.structured), null, 2) 
+                                  : JSON.stringify(transcript.structured, null, 2)}
+                              </pre>
+                            </div>
+                          )}
                         </div>
-                        <div style={{ fontSize: 17, fontWeight: 700 }}>Transcription pending...</div>
-                        <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, maxWidth: 300 }}>
-                          Our AI is currently analyzing the medical context and speaker patterns from your recent session.
+                      ) : loading ? (
+                        <div className="processing-center">
+                          <div className="spin-ring">
+                            <svg viewBox="0 0 70 70" width="70" height="70">
+                              <circle cx="35" cy="35" r="30" fill="none" stroke="#bfdbfe" strokeWidth="4" />
+                              <circle cx="35" cy="35" r="30" fill="none" stroke="#2563eb" strokeWidth="4"
+                                strokeDasharray="80 110" strokeLinecap="round" />
+                            </svg>
+                            <div className="spin-inner-mic"><MicIcon size={22} color="#2563eb" /></div>
+                          </div>
+                          <div style={{ fontSize: 17, fontWeight: 700 }}>Transcription in progress...</div>
+                          <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, maxWidth: 300 }}>
+                            Our AI is transcribing and analyzing your medical recording.
+                          </div>
+                          <div className="progress-bar-wrap">
+                            <div className="progress-bar-fill" />
+                          </div>
                         </div>
-                        <div className="progress-bar-wrap">
-                          <div className="progress-bar-fill" />
+                      ) : (
+                        <div className="processing-center">
+                          <div className="spin-ring">
+                            <svg viewBox="0 0 70 70" width="70" height="70">
+                              <circle cx="35" cy="35" r="30" fill="none" stroke="#bfdbfe" strokeWidth="4" />
+                              <circle cx="35" cy="35" r="30" fill="none" stroke="#2563eb" strokeWidth="4"
+                                strokeDasharray="80 110" strokeLinecap="round" />
+                            </svg>
+                            <div className="spin-inner-mic"><MicIcon size={22} color="#2563eb" /></div>
+                          </div>
+                          <div style={{ fontSize: 17, fontWeight: 700 }}>Transcription pending...</div>
+                          <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, maxWidth: 300 }}>
+                            Our AI is currently analyzing the medical context and speaker patterns from your recent session.
+                          </div>
+                          <div className="progress-bar-wrap">
+                            <div className="progress-bar-fill" />
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <div className="disclaimer">
                         <InfoCircleIcon size={12} />
                         AI-generated transcripts may contain errors. Please review before finalizing.

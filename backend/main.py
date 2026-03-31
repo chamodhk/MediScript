@@ -13,6 +13,10 @@ app = FastAPI(
     description="AI-powered clinical communication system for Hemas Hospitals.",
 )
 
+@app.get("/")
+def root():
+    return {"message": "MediScript API", "version": "0.1.0"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -27,7 +31,7 @@ app.include_router(prescription_router.router, prefix="/api/prescriptions", tags
 
 # ── Routers (uncomment as each module is implemented) ─────────────────────────
 # from routers import auth_router, patient_router
-# from routers import transcription_router, nlp_router
+from routers import transcription_router
 # from routers import prescription_router, consultation_router
 # from routers import pharmacy_router, translation_router, notification_router
 
