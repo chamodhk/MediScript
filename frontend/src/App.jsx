@@ -23,7 +23,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PharmacyPortal />} />
+        <Route path="/" element={<LoginPage />} />
         <Route
           path="/admin"
           element={
