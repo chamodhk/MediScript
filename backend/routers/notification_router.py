@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
-from backend.models.twilio import SendTranscriptionRequest
-from backend.services.twilio_service import send_whatsapp_message
+from models.twilio import SendTranscriptionRequest
+from services.twilio_service import send_whatsapp_message
 
 
 router = APIRouter()
