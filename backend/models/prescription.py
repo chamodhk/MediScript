@@ -56,3 +56,4 @@ class PrescriptionResponse(BaseModel):
     status: str
     image_path: Optional[str] = None
     image_mime_type: str
+    created_at: datetime
