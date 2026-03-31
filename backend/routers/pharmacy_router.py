@@ -17,7 +17,7 @@ from routers.auth_router import get_current_user
 from services.pharmacy_service import advance_status
 
 
-router = APIRouter(prefix="/api/pharmacy", tags=["Pharmacy"])
+router = APIRouter(tags=["Pharmacy"])
 
 
 class QueueItemResponse(BaseModel):
