@@ -48,6 +48,16 @@ class PrescriptionUpdate(BaseModel):
     image_data: Optional[str] = None
     status: Optional[str] = None
 
+# class PrescriptionResponse(BaseModel):
+#     model_config = ConfigDict(from_attributes=True, extra="allow")
+#     id: int
+#     consultation_id: int
+#     pharmacy_id: int
+#     status: str
+#     image_path: Optional[str] = None
+#     image_mime_type: str
+#     created_at: datetime
+
 class PrescriptionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="allow")
     id: int
@@ -56,4 +66,6 @@ class PrescriptionResponse(BaseModel):
     status: str
     image_path: Optional[str] = None
     image_mime_type: str
+    image_data_b64: Optional[str] = None
     created_at: datetime
+    
