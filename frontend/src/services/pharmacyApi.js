@@ -27,6 +27,16 @@ export const fetchPrescriptionImageUrl = async (prescriptionId) => {
   return `/api/pharmacy/prescriptions/${prescriptionId}/image`;
 };
 
+export const fetchPrescriptionImageAsBlob = async (prescriptionId) => {
+  const response = await pharmacyApi.get(
+    `/pharmacy/prescriptions/${prescriptionId}/image`,
+    {
+      responseType: "blob",
+    },
+  );
+  return URL.createObjectURL(response.data);
+};
+
 export const advanceStatus = async (prescriptionId, newStatus) => {
   const response = await pharmacyApi.patch(
     `/pharmacy/prescriptions/${prescriptionId}/status`,

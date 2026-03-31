@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import StatusBadge from "./StatusBadge";
+import { fetchPrescriptionImageAsBlob } from "../../services/pharmacyApi";
 
 function formatSubmissionTime(createdAt) {
   if (!createdAt) {
@@ -49,16 +50,62 @@ export default function DetailPanel({
   isUpdating,
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageUrl, setImageUrl] = useState(null);
 
   useEffect(() => {
     setImageFailed(false);
   }, [prescription?.id]);
 
-  const imageSrc = useMemo(() => {
-    if (!prescription?.id) {
-      return "";
-    }
-    return `/api/pharmacy/prescriptions/${prescription.id}/image`;
+  useEffect(() => {
+    let isMounted = true;
+    let createdUrl = null;
+
+    const loadImage = async () => {
+      if (!prescription?.id) {
+        setImageUrl((prev) => {
+          if (prev) {
+            URL.revokeObjectURL(prev);
+          }
+          return null;
+        });
+        return;
+      }
+
+      try {
+        const nextUrl = await fetchPrescriptionImageAsBlob(prescription.id);
+        if (!isMounted) {
+          URL.revokeObjectURL(nextUrl);
+          return;
+        }
+
+        createdUrl = nextUrl;
+        setImageUrl((prev) => {
+          if (prev) {
+            URL.revokeObjectURL(prev);
+          }
+          return nextUrl;
+        });
+      } catch {
+        if (isMounted) {
+          setImageFailed(true);
+          setImageUrl((prev) => {
+            if (prev) {
+              URL.revokeObjectURL(prev);
+            }
+            return null;
+          });
+        }
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      isMounted = false;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
   }, [prescription?.id]);
 
   if (!prescription) {
@@ -94,13 +141,13 @@ export default function DetailPanel({
           Prescription Image
         </h3>
 
-        {imageFailed ? (
+        {imageFailed || !imageUrl ? (
           <div className="h-64 w-full rounded-lg border border-white/10 bg-gray-700/30 flex items-center justify-center">
             <p className="text-sm text-white/60">No image available</p>
           </div>
         ) : (
           <img
-            src={imageSrc}
+            src={imageUrl}
             alt="Prescription"
             onError={() => setImageFailed(true)}
             className="h-64 w-full rounded-lg border border-white/10 object-contain bg-black/20"

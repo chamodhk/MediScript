@@ -14,6 +14,7 @@ export default function QueuePanel({
   onCardClick,
   filter,
   onFilterChange,
+  isLoading,
 }) {
   const items = Array.isArray(queue) ? queue : [];
 
@@ -36,7 +37,19 @@ export default function QueuePanel({
         </select>
       </label>
 
-      {items.length === 0 ? (
+      {isLoading ? (
+        <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-lg bg-hemas-navy p-4 animate-pulse"
+            >
+              <div className="mb-3 h-4 w-3/4 rounded bg-white/20" />
+              <div className="h-3 w-1/2 rounded bg-white/10" />
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-white/40">
           All clear — no pending prescriptions right now.
         </div>

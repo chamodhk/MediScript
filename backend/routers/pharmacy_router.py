@@ -2,8 +2,9 @@ from datetime import date, datetime, time
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,20 +95,28 @@ async def get_prescription_image(
 	db: AsyncSession = Depends(get_db),
 	_: User = Depends(require_pharmacist),
 ) -> StreamingResponse:
-	stmt = select(Prescription.image_data, Prescription.image_mime_type).where(
-		Prescription.id == prescription_id
-	)
-	result = await db.execute(stmt)
-	row = result.first()
+	try:
+		stmt = select(Prescription.image_data, Prescription.image_mime_type).where(
+			Prescription.id == prescription_id
+		)
+		result = await db.execute(stmt)
+		row = result.first()
 
-	if row is None:
-		raise HTTPException(status_code=404, detail="Prescription not found")
+		if row is None:
+			raise HTTPException(status_code=404, detail="Prescription not found")
 
-	image_data, image_mime_type = row
-	if image_data is None:
-		raise HTTPException(status_code=404, detail="No image available")
+		image_data, image_mime_type = row
+		if not image_data:
+			return JSONResponse(
+				status_code=404,
+				content={"detail": "No image available for this prescription"},
+			)
 
-	return StreamingResponse(BytesIO(image_data), media_type=image_mime_type)
+		return StreamingResponse(BytesIO(image_data), media_type=image_mime_type)
+	except HTTPException:
+		raise
+	except (SQLAlchemyError, ValueError, TypeError):
+		return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @router.patch("/prescriptions/{prescription_id}/status", response_model=StatusUpdateResponse)

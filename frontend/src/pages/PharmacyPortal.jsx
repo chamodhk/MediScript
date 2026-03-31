@@ -45,6 +45,8 @@ export default function PharmacyPortal({ pharmacyId }) {
   const [filter, setFilter] = useState("pending,preparing,ready");
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   const pendingCount = useMemo(() => {
     return queue.filter((item) => item.status === "pending").length;
@@ -56,6 +58,7 @@ export default function PharmacyPortal({ pharmacyId }) {
       const nextQueue = Array.isArray(data) ? data : [];
 
       setQueue(nextQueue);
+      setFetchError(null);
       setSelectedPrescription((currentSelected) => {
         if (!currentSelected?.id) {
           return currentSelected;
@@ -69,7 +72,14 @@ export default function PharmacyPortal({ pharmacyId }) {
       });
       setLastUpdated(new Date());
     } catch (error) {
+      const message =
+        error?.response?.data?.detail ||
+        error?.message ||
+        "Failed to load queue";
+      setFetchError(message);
       console.error("Failed to fetch pharmacy queue", error);
+    } finally {
+      setIsLoading(false);
     }
   }, [pharmacyId, filter]);
 
@@ -123,6 +133,11 @@ export default function PharmacyPortal({ pharmacyId }) {
       <main className="flex h-full min-h-0">
         <section className="w-1/3 min-h-0 border-r border-white/10 overflow-y-auto">
           <div className="px-4 pt-4">
+            {fetchError ? (
+              <div className="mb-2 bg-red-900/30 text-red-400 text-sm p-2 rounded">
+                Failed to load queue. Retrying...
+              </div>
+            ) : null}
             <p className="text-xs text-white/50">
               {formatLastUpdated(lastUpdated)}
             </p>
@@ -133,6 +148,7 @@ export default function PharmacyPortal({ pharmacyId }) {
             onCardClick={handleCardClick}
             filter={filter}
             onFilterChange={setFilter}
+            isLoading={isLoading}
           />
         </section>
 
