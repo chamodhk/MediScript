@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from core.config import settings, load_env_file
 from routers import auth_router, twilio_router, prescription_router,transcription_router
-from routers.pharmacy_router import router as pharmacy_router
 
 
 load_env_file()
@@ -48,4 +47,3 @@ app.include_router(transcription_router.router, prefix="/api/transcription", tag
 
 app.include_router(twilio_router)
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
-app.include_router(pharmacy_router, prefix="/api/pharmacy", tags=["pharmacy"])
