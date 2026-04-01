@@ -19,15 +19,15 @@ export default function QueuePanel({
   const items = Array.isArray(queue) ? queue : [];
 
   return (
-    <section className="flex h-full flex-col bg-hemas-dark p-4">
+    <section className="flex h-full flex-col bg-transparent p-4">
       <label className="mb-3 block">
-        <span className="mb-1 block text-xs uppercase tracking-wide text-white/60">
+        <span className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
           Filter
         </span>
         <select
           value={filter}
           onChange={(event) => onFilterChange?.(event.target.value)}
-          className="w-full rounded-md border border-white/15 bg-hemas-navy px-3 py-2 text-sm text-white outline-none transition-all duration-200 focus:border-hemas-teal"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#00687f] focus:ring-4 focus:ring-[#00687f]/15"
         >
           {FILTER_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -42,15 +42,15 @@ export default function QueuePanel({
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={index}
-              className="rounded-lg bg-hemas-navy p-4 animate-pulse"
+              className="animate-pulse rounded-xl border border-slate-200 bg-slate-100 p-4"
             >
-              <div className="mb-3 h-4 w-3/4 rounded bg-white/20" />
-              <div className="h-3 w-1/2 rounded bg-white/10" />
+              <div className="mb-3 h-4 w-3/4 rounded bg-slate-300" />
+              <div className="h-3 w-1/2 rounded bg-slate-200" />
             </div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-white/40">
+        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-slate-500">
           All clear — no pending prescriptions right now.
         </div>
       ) : (
