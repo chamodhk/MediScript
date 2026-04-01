@@ -1,8 +1,8 @@
 const STATUS_STYLES = {
-  pending: "bg-gray-500/20 text-gray-400 border border-gray-500",
-  preparing: "bg-hemas-orange/20 text-hemas-orange border border-hemas-orange",
-  ready: "bg-hemas-teal/20 text-hemas-teal border border-hemas-teal",
-  collected: "bg-white/5 text-white/30 border border-white/10",
+  pending: "border border-amber-300 bg-amber-50 text-amber-700",
+  preparing: "border border-orange-300 bg-orange-50 text-orange-700",
+  ready: "border border-emerald-300 bg-emerald-50 text-emerald-700",
+  collected: "border border-slate-300 bg-slate-100 text-slate-600",
 };
 
 function toLabel(status) {
