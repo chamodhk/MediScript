@@ -39,7 +39,7 @@ from pydantic import BaseModel, ConfigDict
 class PrescriptionCreate(BaseModel):
     model_config = ConfigDict(extra="allow")
     consultation_id: int
-    pharmacy_id: int
+    pharmacy_id: Optional[int] = None
     image_data: Optional[str] = None
     image_mime_type: Optional[str] = "image/png"
 

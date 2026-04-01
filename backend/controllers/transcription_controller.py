@@ -2,9 +2,10 @@ import os
 import uuid
 from sqlalchemy.orm import Session
 from services.whisper_service import WhisperService
-from services.structure_service import StructuringService
+from services.structure_service import StructureService
 from models.consultation import Consultation
 from models.enums import ConsultationStatus
+from sqlalchemy import select
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_FOLDER = os.path.join(BASE_DIR, "..", "temp")
@@ -14,7 +15,7 @@ class TranscriptionController:
 
     def __init__(self):
         self.whisper = WhisperService()
-        self.structuring = StructuringService()
+        self.structuring = StructureService()
 
     async def process_audio(
         self,
@@ -24,9 +25,10 @@ class TranscriptionController:
     ) -> dict:
 
         # Step 1 - get consultation from DB
-        consultation = db.query(Consultation).filter(
+        result = await db.execute(select(Consultation).filter(
             Consultation.id == consultation_id
-        ).first()
+        ))
+        consultation = result.scalar_one_or_none()
 
         if not consultation:
             raise Exception(f"Consultation {consultation_id} not found")
@@ -40,7 +42,7 @@ class TranscriptionController:
         # Step 3 - save audio path to DB
         consultation.audio_file_path = audio_path
         consultation.status = ConsultationStatus.IN_PROGRESS
-        db.commit()
+        await db.commit()
 
         # Step 4 - Whisper transcribes + deletes audio
         raw_text = self.whisper.transcribe(audio_path)
@@ -50,7 +52,7 @@ class TranscriptionController:
         consultation.transcript = raw_text
         consultation.audio_file_path = None
         consultation.status = ConsultationStatus.TRANSCRIBED
-        db.commit()
+        await db.commit()
 
         # Step 6 - Ollama structures
         structured = self.structuring.structure(raw_text)
@@ -59,7 +61,7 @@ class TranscriptionController:
         # Step 7 - update status to STRUCTURED
         consultation.structured_output = structured
         consultation.status = ConsultationStatus.STRUCTURED
-        db.commit()
+        await db.commit()
 
         # Step 8 - return to frontend
         return {

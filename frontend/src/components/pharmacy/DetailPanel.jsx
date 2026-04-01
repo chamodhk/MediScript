@@ -23,21 +23,21 @@ function getAdvanceConfig(status) {
   if (status === "pending") {
     return {
       label: "▶ Start Preparing",
-      className: "bg-hemas-orange hover:opacity-90",
+      className: "bg-[#e75424] hover:bg-[#cf491d]",
     };
   }
 
   if (status === "preparing") {
     return {
       label: "✓ Mark as Ready",
-      className: "bg-hemas-teal hover:opacity-90",
+      className: "bg-[#025567] hover:bg-[#014452]",
     };
   }
 
   if (status === "ready") {
     return {
       label: "📦 Mark as Collected",
-      className: "bg-hemas-teal hover:opacity-90",
+      className: "bg-[#025567] hover:bg-[#014452]",
     };
   }
 
@@ -110,8 +110,8 @@ export default function DetailPanel({
 
   if (!prescription) {
     return (
-      <aside className="bg-hemas-navy p-6 rounded-xl min-h-[24rem] flex items-center justify-center">
-        <p className="text-sm text-white/50 text-center">
+      <aside className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm">
+        <p className="text-center text-sm text-slate-500">
           Select a prescription from the queue to view details.
         </p>
       </aside>
@@ -121,49 +121,49 @@ export default function DetailPanel({
   const advanceConfig = getAdvanceConfig(prescription.status);
 
   return (
-    <aside className="bg-hemas-navy p-6 rounded-xl h-full">
+    <aside className="h-full rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-2xl font-bold text-white">
+        <h2 className="text-2xl font-bold text-slate-800">
           {prescription.patient_name ?? "Unknown Patient"}
         </h2>
         <StatusBadge status={prescription.status} />
       </div>
 
-      <p className="mt-2 text-sm text-white/70">
+      <p className="mt-2 text-sm text-slate-600">
         {prescription.patient_phone ?? "No phone available"}
       </p>
-      <p className="mt-1 text-xs text-white/60">
+      <p className="mt-1 text-xs text-slate-500">
         Submitted at {formatSubmissionTime(prescription.created_at)}
       </p>
 
       <div className="mt-6">
-        <h3 className="text-sm font-medium text-white/80 mb-2">
+        <h3 className="mb-2 text-sm font-medium text-slate-700">
           Prescription Image
         </h3>
 
         {imageFailed || !imageUrl ? (
-          <div className="h-64 w-full rounded-lg border border-white/10 bg-gray-700/30 flex items-center justify-center">
-            <p className="text-sm text-white/60">No image available</p>
+          <div className="flex h-64 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+            <p className="text-sm text-slate-500">No image available</p>
           </div>
         ) : (
           <img
             src={imageUrl}
             alt="Prescription"
             onError={() => setImageFailed(true)}
-            className="h-64 w-full rounded-lg border border-white/10 object-contain bg-black/20"
+            className="h-64 w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
           />
         )}
       </div>
 
       <div className="mt-6">
         {prescription.status === "collected" ? (
-          <p className="text-sm font-semibold text-white/70">✅ Collected</p>
+          <p className="text-sm font-semibold text-slate-600">✅ Collected</p>
         ) : (
           <button
             type="button"
             onClick={() => onAdvanceStatus?.()}
             disabled={isUpdating}
-            className={`w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${advanceConfig?.className ?? "bg-hemas-teal"}`}
+            className={`w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-[#025567]/20 disabled:cursor-not-allowed disabled:opacity-60 ${advanceConfig?.className ?? "bg-[#025567]"}`}
           >
             {isUpdating ? "Updating..." : advanceConfig?.label}
           </button>

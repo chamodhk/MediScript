@@ -127,18 +127,18 @@ export default function PharmacyPortal({ pharmacyId }) {
   };
 
   return (
-    <div className="h-screen bg-hemas-dark text-white flex flex-col">
+    <div className="flex h-screen flex-col bg-gradient-to-br from-[#eef7fa] via-[#f8fcfd] to-[#eef6f2] text-slate-800">
       <PharmacyHeader pharmacyId={pharmacyId} pendingCount={pendingCount} />
 
-      <main className="flex h-full min-h-0">
-        <section className="w-1/3 min-h-0 border-r border-white/10 overflow-y-auto">
+      <main className="flex h-full min-h-0 gap-4 p-4">
+        <section className="min-h-0 w-1/3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
           <div className="px-4 pt-4">
             {fetchError ? (
-              <div className="mb-2 bg-red-900/30 text-red-400 text-sm p-2 rounded">
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
                 Failed to load queue. Retrying...
               </div>
             ) : null}
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-slate-500">
               {formatLastUpdated(lastUpdated)}
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function PharmacyPortal({ pharmacyId }) {
           />
         </section>
 
-        <section className="w-2/3 p-4 min-h-0">
+        <section className="min-h-0 w-2/3">
           <DetailPanel
             prescription={selectedPrescription}
             onAdvanceStatus={handleAdvanceStatus}

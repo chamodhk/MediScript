@@ -225,4 +225,10 @@ temp/*.m4a
 temp/*.ogg
 *.wav
 *.mp3
+<<<<<<< HEAD
 >>>>>>> main
+=======
+
+#database
+*.db
+>>>>>>> upstream/main
