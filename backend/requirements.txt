@@ -10,7 +10,7 @@ anyio==4.13.0
 APScheduler==3.11.0
 attrs==26.1.0
 av==17.0.0
-bcrypt==4.1.2
+bcrypt
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.6
@@ -69,11 +69,11 @@ nvidia-nvjitlink==13.0.88
 nvidia-nvshmem-cu13==3.4.5
 nvidia-nvtx==13.0.85
 ollama==0.6.1
-ollama==0.3.1
+#ollama==0.3.1
 onnxruntime==1.24.4
 openai-whisper==20250625
 packaging==26.0
-passlib==1.7.4.post2
+passlib==1.7.4
 propcache==0.4.1
 protobuf==7.34.1
 pyasn1==0.6.3

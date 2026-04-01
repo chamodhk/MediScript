@@ -9,12 +9,16 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
-  // Don't force Content-Type for FormData - let browser set multipart/form-data
-  if (!(config.data instanceof FormData)) {
+
+  // Preserve explicitly provided headers and browser-managed multipart/form data.
+  if (
+    !config.headers["Content-Type"] &&
+    !(config.data instanceof FormData) &&
+    !(config.data instanceof URLSearchParams)
+  ) {
     config.headers["Content-Type"] = "application/json";
   }
-  
+
   return config;
 });
 
