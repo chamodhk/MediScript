@@ -226,3 +226,5 @@ temp/*.ogg
 *.wav
 *.mp3
 .mediscript.db
+
+.python-version
