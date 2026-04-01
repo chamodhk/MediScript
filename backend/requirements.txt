@@ -106,6 +106,8 @@ torch==2.11.0
 tqdm==4.67.3
 triton==3.6.0
 twilio==9.5.2
+transformers==4.52.4
+sentencepiece==0.2.0
 typer==0.24.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0
@@ -117,7 +119,6 @@ watchfiles==1.1.1
 websockets==16.0
 wheel==0.46.3
 yarl==1.23.0
-
 openai-whisper
 torch
 torchvision

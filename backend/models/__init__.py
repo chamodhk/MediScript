@@ -12,8 +12,15 @@ from models.pharmacy import Pharmacy
 from models.reminder import Reminder
 
 from .twilio import SendTranscriptionRequest
+from .translation import (
+    InstructionTranslationRequest,
+    InstructionTranslationResponse,
+)
 
 __all__ = [
+    "SendTranscriptionRequest",
+    "InstructionTranslationRequest",
+    "InstructionTranslationResponse",
     "UserRole",
     "ConsultationStatus",
     "ReminderType",
