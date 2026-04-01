@@ -5,6 +5,7 @@ import PharmacyPortal from "./pages/PharmacyPortal";
 import MediScriptDashboard from "./pages/MediScriptDashboard";
 import WritingPad from "./pages/WritingPad";
 import AdminPortal from "./pages/AdminPortal";
+import MediScriptPrescriptionCanvas from "./pages/MediscriptionCanvas";
 import QueuePanel from "./components/pharmacy/QueuePanel";
 import DetailPanel from "./components/pharmacy/DetailPanel";
 import PharmacyHeader from "./components/pharmacy/PharmacyHeader";
@@ -23,7 +24,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MediScriptDashboard />} />
+        <Route path="/" element={<LoginPage />} />
         <Route
           path="/admin"
           element={
@@ -37,6 +38,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <MediScriptDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/writingpad"
+          element={
+            <ProtectedRoute>
+
+              <MediScriptPrescriptionCanvas />
             </ProtectedRoute>
           }
         />
@@ -56,6 +66,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
