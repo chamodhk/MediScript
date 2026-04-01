@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     WHISPER_MODEL: str = "small"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "meditron:7b"
+    OLLAMA_MODEL: str = "phi3"
     LIBRETRANSLATE_URL: str = "http://localhost:5000"
 
     APP_ENV: str = "development"
