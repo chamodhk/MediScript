@@ -23,8 +23,8 @@ export default function PrescriptionCard({
   onClick,
 }) {
   const cardClasses = isSelected
-    ? "border-2 border-hemas-teal bg-hemas-teal/10"
-    : "border border-white/10 hover:bg-hemas-teal/5";
+    ? "border-2 border-[#00687f] bg-[#00687f]/10 shadow-sm"
+    : "border border-slate-200 bg-white hover:bg-slate-50";
 
   const handleClick = () => {
     onClick?.(prescription);
@@ -34,16 +34,16 @@ export default function PrescriptionCard({
     <button
       type="button"
       onClick={handleClick}
-      className={`w-full bg-hemas-navy rounded-lg p-4 cursor-pointer text-left transition-all duration-200 ${cardClasses}`}
+      className={`w-full cursor-pointer rounded-xl p-4 text-left transition-all duration-200 ${cardClasses}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold text-white">
+        <p className="text-sm font-semibold text-slate-800">
           {prescription?.patient_name ?? "Unknown Patient"}
         </p>
         <StatusBadge status={prescription?.status} />
       </div>
 
-      <p className="mt-2 text-xs text-white/70">
+      <p className="mt-2 text-xs text-slate-500">
         {formatSubmissionTime(prescription?.created_at)}
       </p>
     </button>

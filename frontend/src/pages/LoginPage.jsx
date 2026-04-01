@@ -29,7 +29,8 @@ export default function LoginPage() {
       navigate(data.redirectPath || "/", { replace: true });
     } catch (requestError) {
       const detail =
-        requestError?.response?.data?.detail || "Login failed. Check your credentials.";
+        requestError?.response?.data?.detail ||
+        "Login failed. Check your credentials.";
       setError(detail);
     } finally {
       setLoading(false);
@@ -37,51 +38,75 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="mx-auto mt-16 max-w-[420px] p-4 text-white">
-      <h1 className="mb-4 text-2xl font-semibold">MediScript Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-200">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-          />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#e6f4f7] via-[#f4fbfd] to-[#eef6f2] px-4 py-10 text-slate-800">
+      <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#b8e5ef]/60 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 -bottom-16 h-80 w-80 rounded-full bg-[#c6efe2]/60 blur-3xl" />
+
+      <div className="relative w-full max-w-[430px] rounded-3xl border border-slate-200/70 bg-white/90 p-8 shadow-[0_20px_50px_-20px_rgba(2,85,103,0.35)] backdrop-blur">
+        <div className="mb-7">
+          <p className="mb-2 inline-flex items-center rounded-full border border-[#00687f]/20 bg-[#00687f]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#025567]">
+            Secure Access
+          </p>
+          <h1 className="text-3xl font-bold leading-tight text-[#08263e]">
+            Welcome back to MediScript
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Sign in to continue to your MediScript workspace.
+          </p>
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-200">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="password"
-            required
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 transition focus:border-[#00687f] focus:outline-none focus:ring-4 focus:ring-[#00687f]/15"
+            />
+          </div>
 
-        {error ? (
-          <p className="mb-3 text-sm text-red-400">{error}</p>
-        ) : null}
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 transition focus:border-[#00687f] focus:outline-none focus:ring-4 focus:ring-[#00687f]/15"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-orange-600 px-4 py-2 font-medium text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+          {error ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-[#e75424] px-4 py-2.5 font-semibold text-white transition hover:bg-[#cf491d] focus:outline-none focus:ring-4 focus:ring-[#e75424]/25 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
