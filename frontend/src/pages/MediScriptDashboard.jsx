@@ -600,36 +600,66 @@ const css = `
 // IDLE → READY_WITH_PATIENT → RECORDING → PROCESSING
 const STATES = { IDLE: "idle", READY: "ready", RECORDING: "recording", PROCESSING: "processing" };
 
-// ── Demo Patient Data ─────────────────────────────────────────────────────────
-const PATIENTS = {
-  "P-88291": { id: "P-88291", name: "Sarah Jenkins", age: 42, sex: "Female", lang: "English (US)", consent: true },
-  "PX-4402": { id: "PX-4402", name: "Sarah Jenkins", age: 34, sex: "Female", lang: "English (US)", consent: true, history: "Patient presents with recurring migraines and light sensitivity. Last visit: 3 months ago." },
-  "P-8829-X": { id: "P-8829-X", name: "Jonathan Harker", age: 42, sex: "Male", lang: "English (UK)", consent: true },
-};
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function MediScriptDashboard() {
   const [appState, setAppState] = useState(STATES.IDLE);
+  const [patients, setPatients] = useState([]);
   const [patientId, setPatientId] = useState("");
   const [patient, setPatient] = useState(null);
   const [timer, setTimer] = useState(0);
   const [transcript, setTranscript] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [patientsLoading, setPatientsLoading] = useState(true);
+  const [consultationId, setConsultationId] = useState(null);
   const intervalRef = useRef(null);
   const { isRecording, audioBlob, startRecording: recordStart, stopRecording: recordStop, setAudioBlob } = useAudioRecorder();
 
-  const loadPatient = () => {
-    const p = PATIENTS[patientId.trim()];
-    if (p) {
-      setPatient(p);
-      setAppState(STATES.READY);
-    } else {
-      alert("Patient not found. Try: P-88291, PX-4402, or P-8829-X");
+  // Fetch all patients on component mount
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await api.get("/patients");
+        setPatients(response.data || []);
+      } catch (error) {
+        console.error("Failed to fetch patients:", error);
+        alert("Failed to load patients. Please check your connection.");
+      } finally {
+        setPatientsLoading(false);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  const loadPatient = async () => {
+    const selectedPatient = patients.find(p => p.id === parseInt(patientId));
+    if (!selectedPatient) {
+      alert("Patient not found. Please select from the list.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Create a new consultation record for this patient
+      const consultationResponse = await api.post("/consultations", {
+        patient_id: selectedPatient.id,
+        doctor_id: 1, // This should come from logged-in user context
+      });
+
+      if (consultationResponse.data && consultationResponse.data.id) {
+        setConsultationId(consultationResponse.data.id);
+        setPatient(selectedPatient);
+        setAppState(STATES.READY);
+      }
+    } catch (error) {
+      console.error("Failed to create consultation:", error);
+      alert(`Failed to create consultation: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const sendAudioToBackend = async (audioData) => {
-    if (!audioData || !patient || !patient.id) return;
+    if (!audioData || !consultationId) return;
     
     setLoading(true);
     try {
@@ -637,10 +667,10 @@ export default function MediScriptDashboard() {
       const formData = new FormData();
       formData.append("audio", audioData, "recording.webm");
 
-      // Send to backend with patient ID
+      // Send to backend with consultation ID
       // Don't set Content-Type header - let axios/browser handle it for multipart
       const response = await api.post(
-        `/transcription/transcribe/${patient.id}`,
+        `/transcription/transcribe/${consultationId}`,
         formData
       );
 
@@ -673,10 +703,10 @@ export default function MediScriptDashboard() {
 
   // Auto-send audio to backend when recording stops and audioBlob is ready
   useEffect(() => {
-    if (audioBlob && appState === STATES.PROCESSING && patient?.id && !loading) {
+    if (audioBlob && appState === STATES.PROCESSING && consultationId && !loading) {
       sendAudioToBackend(audioBlob);
     }
-  }, [audioBlob, appState, patient?.id, loading]);
+  }, [audioBlob, appState, consultationId, loading]);
 
   useEffect(() => () => clearInterval(intervalRef.current), []);
 
@@ -690,6 +720,7 @@ export default function MediScriptDashboard() {
     clearInterval(intervalRef.current);
     setPatient(null);
     setPatientId("");
+    setConsultationId(null);
     setTimer(0);
     setTranscript(null);
     setLoading(false);
@@ -727,12 +758,22 @@ export default function MediScriptDashboard() {
               <>
                 <div>
                   <div className="sidebar-section-title"><UserIcon size={13} /> Patient Context</div>
-                  <div className="label">Search Patient ID</div>
+                  <div className="label">Enter Patient ID</div>
                   <div className="input-row">
-                    <input className="input" placeholder="e.g. PX-9921"
-                      value={patientId} onChange={e => setPatientId(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && loadPatient()} />
-                    <button className="btn-load" onClick={loadPatient}>Load</button>
+                    <input 
+                      className="input" 
+                      placeholder="e.g. 1, 2, 3"
+                      value={patientId} 
+                      onChange={e => setPatientId(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && loadPatient()} 
+                    />
+                    <button 
+                      className="btn-load" 
+                      onClick={loadPatient}
+                      disabled={loading || !patientId.trim()}
+                    >
+                      {loading ? "Loading..." : "Load"}
+                    </button>
                   </div>
                   <div className="patient-empty">
                     <UserIcon size={28} />
@@ -760,11 +801,6 @@ export default function MediScriptDashboard() {
                         padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>Active</span>
                     )}
                   </div>
-                  <div className="label">Patient ID</div>
-                  <div className="input-row">
-                    <input className="input" value={patientId} onChange={e => setPatientId(e.target.value)} />
-                    <button className="btn-load" onClick={loadPatient}>Load</button>
-                  </div>
                   <div className="patient-card">
                     <div className="patient-row">
                       <span className="key">Name</span>
@@ -775,8 +811,12 @@ export default function MediScriptDashboard() {
                       <span className="val">{patient.age} / {patient.sex}</span>
                     </div>
                     <div className="patient-row">
+                      <span className="key">Phone</span>
+                      <span className="val">{patient.phone || "N/A"}</span>
+                    </div>
+                    <div className="patient-row">
                       <span className="key"><LanguageIcon size={12} /> Language</span>
-                      <span className="val">{patient.lang}</span>
+                      <span className="val">{patient.preferred_language || "Not specified"}</span>
                     </div>
                   </div>
                 </div>
@@ -793,11 +833,6 @@ export default function MediScriptDashboard() {
                   </div>
                 ) : (
                   <>
-                    {patient.consent && (
-                      <div className="consent-badge">
-                        <CheckCircleIcon size={13} /> Consent Verified (2024-05-20)
-                      </div>
-                    )}
                     <div>
                       <div className="sidebar-section-title">System Status</div>
                       <div className="status-box">
@@ -825,11 +860,6 @@ export default function MediScriptDashboard() {
               <>
                 <div>
                   <div className="sidebar-section-title"><UserIcon size={13} /> Patient Information</div>
-                  <div className="label">Patient ID</div>
-                  <div className="input-row">
-                    <input className="input" value={patientId} onChange={e => setPatientId(e.target.value)} />
-                    <button className="btn-load" onClick={loadPatient}>Load</button>
-                  </div>
                   <div className="patient-card">
                     <div className="patient-row">
                       <span className="key">Name</span>
@@ -840,22 +870,15 @@ export default function MediScriptDashboard() {
                       <span className="val">{patient.age} / {patient.sex}</span>
                     </div>
                     <div className="patient-row">
+                      <span className="key">Phone</span>
+                      <span className="val">{patient.phone || "N/A"}</span>
+                    </div>
+                    <div className="patient-row">
                       <span className="key">Language</span>
-                      <span className="val">{patient.lang}</span>
+                      <span className="val">{patient.preferred_language || "Not specified"}</span>
                     </div>
                   </div>
-                  {patient.consent && (
-                    <div className="consent-badge" style={{ marginTop: 10 }}>
-                      <CheckCircleIcon size={13} /> Consent Verified (2024-05-20)
-                    </div>
-                  )}
                 </div>
-                {patient.history && (
-                  <div className="history-box">
-                    <div className="history-box-title">Quick History</div>
-                    <p>{patient.history}</p>
-                  </div>
-                )}
               </>
             )}
           </aside>
