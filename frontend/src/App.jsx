@@ -24,7 +24,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MediScriptDashboard />} />
+        <Route path="/" element={<LoginPage />} />
         <Route
           path="/admin"
           element={
