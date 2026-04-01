@@ -3,7 +3,7 @@
 > Update this file every time you finish a feature, add an endpoint, change the DB, install a library, or make a technical decision.
 > Rule: Before starting work each day — read this file top to bottom first.
 
----
+--
 
 ## Team
 
@@ -212,3 +212,8 @@ Demo patients (pre-seeded with tokens):
 ---
 
 ## MCP Servers
+
+
+## WE MUST CHANGE THE frontend files..A bunch of files has been made and it is not good
+
+

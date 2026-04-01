@@ -1,7 +1,9 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.transcription_controller import TranscriptionController
 from core.database import get_db
+from models.consultation import Consultation
 
 router = APIRouter()
 controller = TranscriptionController()
@@ -12,7 +14,7 @@ controller = TranscriptionController()
 async def transcribe_audio(
     consultation_id: int,
     audio: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         # Read audio bytes from frontend
@@ -38,14 +40,13 @@ async def transcribe_audio(
 @router.get("/transcribe/{consultation_id}")
 async def get_transcript(
     consultation_id: int,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     try:
-        from models.consultation import Consultation
-
-        consultation = db.query(Consultation).filter(
-            Consultation.id == consultation_id
-        ).first()
+        result = await db.execute(
+            select(Consultation).filter(Consultation.id == consultation_id)
+        )
+        consultation = result.scalar_one_or_none()
 
         if not consultation:
             raise HTTPException(
