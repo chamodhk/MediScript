@@ -2,12 +2,14 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.prescription import Prescription
+from services.pharmacy_service import assign_pharmacy
 
 async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime_type, db: AsyncSession):
     try:
+        assigned_pharmacy_id = pharmacy_id or await assign_pharmacy(db)
         record = Prescription(
             consultation_id=consultation_id,
-            pharmacy_id=pharmacy_id,
+            pharmacy_id=assigned_pharmacy_id,
             image_data=image_data.encode() if image_data else None,
             image_mime_type=image_mime_type or "image/png",
             status="pending"
