@@ -210,9 +210,19 @@ __marimo__/
 #codex
 .codex
 
+<<<<<<< HEAD
 # Frontend dependencies
 frontend/node_modules/
 
 # Backend dependencies
 backend/mediscript.db
 *.db
+=======
+# Audio files
+temp/*.wav
+temp/*.mp3
+temp/*.m4a
+temp/*.ogg
+*.wav
+*.mp3
+>>>>>>> main
