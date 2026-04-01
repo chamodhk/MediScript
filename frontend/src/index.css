@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Hemas Healthcare — global design tokens (CSS custom properties)
+   These mirror the values in tailwind.config.js so you can use them with
+   both Tailwind utility classes AND plain CSS (var(--hemas-teal) etc.).
+   ───────────────────────────────────────────────────────────────────────── */
+@layer base {
+    :root {
+        /* Primary teal family */
+        --hemas-teal: #025567;
+        --hemas-teal-dark: #08263e;
+        --hemas-cyan: #00687f;
+
+        /* Dark backgrounds */
+        --hemas-navy: #112023;
+        --hemas-dark: #081c20;
+
+        /* Accent */
+        --hemas-orange: #e75424;
+
+        /* Neutrals */
+        --hemas-white: #ffffff;
+        --hemas-white-alpha: #ffffff4d;
+        --hemas-gray: #b8b8b8;
+        --hemas-gray-light: #c7d0d7;
+        --hemas-gray-mid: #cccccc;
+        --hemas-gray-muted: #b3b8c8;
+        --hemas-gray-warm: #7f8c8f;
+        --hemas-gray-dark: #777777;
+
+        /* Other */
+        --hemas-blue: #007bff;
+        --hemas-black: #000000;
+
+        /* ── Semantic aliases ──────────────────────────────────────────── */
+        --color-primary: var(--hemas-teal);
+        --color-primary-dark: var(--hemas-teal-dark);
+        --color-accent: var(--hemas-orange);
+        --color-surface: var(--hemas-navy);
+        --color-surface-deep: var(--hemas-dark);
+        --color-text: var(--hemas-white);
+        --color-text-muted: var(--hemas-gray-light);
+        --color-border: var(--hemas-cyan);
+    }
+
+    /* Base reset — apply brand background and text defaults */
+    body {
+        background-color: var(--color-surface-deep);
+        color: var(--color-text);
+        font-family: 'Inter', sans-serif;
+    }
+}

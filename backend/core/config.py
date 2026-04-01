@@ -6,7 +6,19 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./mediscript.db"
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    # CORS_ORIGINS: List[str] = [
+    #     "http://localhost:5173",
+    #     "http://127.0.0.1:5173"
+    #     ]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
@@ -14,7 +26,7 @@ class Settings(BaseSettings):
 
     WHISPER_MODEL: str = "small"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "meditron:7b"
+    OLLAMA_MODEL: str = "phi3"
     LIBRETRANSLATE_URL: str = "http://localhost:5000"
 
     APP_ENV: str = "development"
