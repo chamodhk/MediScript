@@ -44,9 +44,10 @@ export default function App() {
         <Route
           path="/writingpad"
           element={
-            
+            <ProtectedRoute>
+
               <MediScriptPrescriptionCanvas />
-            
+            </ProtectedRoute>
           }
         />
         <Route
