@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
 .envrc
 .venv
 env/
@@ -143,6 +144,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+mediscript.db
+backend/mediscript.db
 
 # Spyder project settings
 .spyderproject
@@ -217,3 +225,4 @@ temp/*.m4a
 temp/*.ogg
 *.wav
 *.mp3
+.mediscript.db

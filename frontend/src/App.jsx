@@ -5,6 +5,11 @@ import PharmacyPortal from "./pages/PharmacyPortal";
 import MediScriptDashboard from "./pages/MediScriptDashboard";
 import WritingPad from "./pages/WritingPad";
 import AdminPortal from "./pages/AdminPortal";
+import QueuePanel from "./components/pharmacy/QueuePanel";
+import DetailPanel from "./components/pharmacy/DetailPanel";
+import PharmacyHeader from "./components/pharmacy/PharmacyHeader";
+import PrescriptionCard from "./components/pharmacy/PrescriptionCard";
+import StatusBadge from "./components/pharmacy/StatusBadge";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("accessToken");
