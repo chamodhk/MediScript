@@ -33,37 +33,71 @@ class TranscriptionController:
         if not consultation:
             raise Exception(f"Consultation {consultation_id} not found")
 
+        print(f"\n{'='*60}")
+        print(f"🎤 [STEP 1] Consultation Found")
+        print(f"   Consultation ID: {consultation_id}")
+        print(f"   Patient ID: {consultation.patient_id}")
+        print(f"   Doctor ID: {consultation.doctor_id}")
+        print(f"   Current Status: {consultation.status}")
+        print(f"{'='*60}\n")
+
         # Step 2 - save audio to temp
         audio_path = self._save_temp_audio(
             audio_bytes,
             consultation_id
         )
 
+        print(f"💾 [STEP 2] Audio Saved to Temp")
+        print(f"   Path: {audio_path}")
+        print(f"   Size: {len(audio_bytes) / 1024:.2f} KB\n")
+
         # Step 3 - save audio path to DB
         consultation.audio_file_path = audio_path
         consultation.status = ConsultationStatus.IN_PROGRESS
         await db.commit()
 
+        print(f"📝 [STEP 3] Audio Path Saved to Database")
+        print(f"   consultation.audio_file_path = {audio_path}")
+        print(f"   consultation.status = {consultation.status}\n")
+
         # Step 4 - Whisper transcribes + deletes audio
+        print(f"⏳ [STEP 4] Transcription In Progress...")
         raw_text = self.whisper.transcribe(audio_path)
-        print(f"Raw transcript: {raw_text}")
+        print(f"✅ Transcription Complete!")
+        print(f"   Length: {len(raw_text)} characters")
+        print(f"   Preview: {raw_text[:100]}...\n")
 
         # Step 5 - update status to TRANSCRIBED
         consultation.transcript = raw_text
-        consultation.audio_file_path = None
+        consultation.audio_file_path = None  # Audio file deleted after transcription
         consultation.status = ConsultationStatus.TRANSCRIBED
         await db.commit()
 
+        print(f"📚 [STEP 5] Transcript Stored in Database")
+        print(f"   consultation.transcript = '{raw_text[:50]}...'")
+        print(f"   consultation.audio_file_path = None (audio deleted)")
+        print(f"   consultation.status = {consultation.status}\n")
+
         # Step 6 - Ollama structures
+        print(f"🤖 [STEP 6] Structuring With Ollama...")
         structured = self.structuring.structure(raw_text)
-        print(f"Structured output: {structured}")
+        print(f"✅ Structuring Complete!")
+        print(f"   Output Type: {type(structured)}")
+        print(f"   Output Keys: {list(structured.keys()) if isinstance(structured, dict) else 'N/A'}\n")
 
         # Step 7 - update status to STRUCTURED
         consultation.structured_output = structured
         consultation.status = ConsultationStatus.STRUCTURED
         await db.commit()
 
+        print(f"✨ [STEP 7] Structured Output Saved to Database")
+        print(f"   consultation.structured_output = {str(structured)[:100]}...")
+        print(f"   consultation.status = {consultation.status}")
+        print(f"{'='*60}\n")
+
         # Step 8 - return to frontend
+        print(f"🎉 [STEP 8] Returning Response to Frontend\n")
+        
         return {
             "status": "success",
             "consultation_id": consultation_id,

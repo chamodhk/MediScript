@@ -659,14 +659,31 @@ export default function MediScriptDashboard() {
   };
 
   const sendAudioToBackend = async (audioData) => {
-    if (!audioData || !consultationId) return;
+    if (!audioData || !consultationId) {
+      console.warn("⚠️ Cannot send audio - Missing audioData or consultationId", {
+        hasAudioData: !!audioData,
+        consultationId
+      });
+      return;
+    }
     
     setLoading(true);
+    const audioSize = (audioData.size / 1024 / 1024).toFixed(2); // MB
+    
+    console.log("🎤 AUDIO UPLOAD STARTED", {
+      consultationId,
+      audioFormat: audioData.type,
+      audioSize: `${audioSize} MB`,
+      timestamp: new Date().toLocaleTimeString()
+    });
+
     try {
       // Create FormData with audio file
       const formData = new FormData();
       formData.append("audio", audioData, "recording.webm");
 
+      console.log("📤 Sending audio to backend...");
+      
       // Send to backend with consultation ID
       // Don't set Content-Type header - let axios/browser handle it for multipart
       const response = await api.post(
@@ -674,13 +691,29 @@ export default function MediScriptDashboard() {
         formData
       );
 
+      console.log("✅ BACKEND RESPONSE RECEIVED", {
+        status: response.status,
+        hasTranscript: !!response.data.raw_transcript,
+        transcriptLength: response.data.raw_transcript?.length || 0,
+        hasStructured: !!response.data.structured,
+        processingTime: "See backend logs",
+        timestamp: new Date().toLocaleTimeString()
+      });
+
       // Handle response
       if (response.data.raw_transcript) {
         setTranscript(response.data);
-        console.log("Transcription successful:", response.data);
+        console.log("✨ Transcription successful");
+        console.log("📝 Raw Transcript:", response.data.raw_transcript.substring(0, 200) + "...");
+        console.log("📊 Structured Output:", response.data.structured);
       }
     } catch (error) {
-      console.error("Transcription error:", error);
+      console.error("❌ TRANSCRIPTION ERROR", {
+        errorMessage: error.message,
+        statusCode: error.response?.status,
+        detail: error.response?.data?.detail,
+        timestamp: new Date().toLocaleTimeString()
+      });
       alert(`Transcription failed: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoading(false);
