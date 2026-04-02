@@ -1,11 +1,16 @@
 import os
 import uuid
-from sqlalchemy.orm import Session
-from services.whisper_service import WhisperService
-from services.structure_service import StructureService
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from models.consultation import Consultation
 from models.enums import ConsultationStatus
-from sqlalchemy import select
+from models.patient import Patient
+from models.user import User
+from services.reminder_flow_service import ReminderFlowService
+from services.whisper_service import WhisperService
+from services.structure_service import StructureService
+from services.twilio_service import send_structured_whatsapp_message
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_FOLDER = os.path.join(BASE_DIR, "..", "temp")
@@ -16,12 +21,13 @@ class TranscriptionController:
     def __init__(self):
         self.whisper = WhisperService()
         self.structuring = StructureService()
+        self.reminder_flow = ReminderFlowService()
 
     async def process_audio(
         self,
         audio_bytes: bytes,
         consultation_id: int,
-        db: Session
+        db: AsyncSession
     ) -> dict:
 
         # Step 1 - get consultation from DB
@@ -90,9 +96,42 @@ class TranscriptionController:
         consultation.status = ConsultationStatus.STRUCTURED
         await db.commit()
 
+        patient_result = await db.execute(
+            select(Patient).filter(Patient.id == consultation.patient_id)
+        )
+        patient = patient_result.scalar_one_or_none()
+
+        if not patient:
+            raise Exception(f"Patient {consultation.patient_id} not found")
+
+        doctor_result = await db.execute(
+            select(User).filter(User.id == consultation.doctor_id)
+        )
+        doctor = doctor_result.scalar_one_or_none()
+
+        doctor_name = doctor.full_name if doctor else None
+        session_datetime = consultation.created_at.strftime("%Y-%m-%d %I:%M %p")
+
+        send_structured_whatsapp_message(
+            to_number=patient.phone,
+            structured_data=structured,
+            raw_transcript=raw_text,
+            consultation_id=consultation.id,
+            session_datetime=session_datetime,
+            doctor_name=doctor_name,
+            preferred_language=patient.preferred_language,
+        )
+        created_reminders = await self.reminder_flow.create_follow_up_flow(
+            db,
+            patient=patient,
+            consultation=consultation,
+            structured_data=structured,
+        )
+
         print(f"✨ [STEP 7] Structured Output Saved to Database")
         print(f"   consultation.structured_output = {str(structured)[:100]}...")
         print(f"   consultation.status = {consultation.status}")
+        print(f"   reminders_created = {len(created_reminders)}")
         print(f"{'='*60}\n")
 
         # Step 8 - return to frontend

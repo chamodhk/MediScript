@@ -39,7 +39,7 @@ hf-xet==1.4.2
 httpcore==1.0.9
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.8.0
+huggingface_hub
 idna==3.11
 Jinja2==3.1.6
 llvmlite==0.47.0
@@ -101,7 +101,7 @@ SQLAlchemy==2.0.40
 starlette==0.46.2
 sympy==1.14.0
 tiktoken==0.12.0
-tokenizers==0.22.2
+tokenizers
 torch==2.11.0
 tqdm==4.67.3
 triton==3.6.0

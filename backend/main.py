@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -5,14 +6,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from core.config import settings, load_env_file
 from routers import auth_router, twilio_router, prescription_router, transcription_router, patient_router, consultation_router, translation_router
+from services.scheduler_service import scheduler_service
 
 
 load_env_file()
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    scheduler_service.start()
+    try:
+        yield
+    finally:
+        scheduler_service.shutdown()
+
 
 app = FastAPI(
     title="MediScript API",
     version="0.1.0",
     description="AI-powered clinical communication system for Hemas Hospitals.",
+    lifespan=lifespan,
 )
 
 @app.get("/")

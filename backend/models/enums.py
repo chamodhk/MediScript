@@ -23,6 +23,17 @@ class ReminderType(str, Enum):
 
 
 class ReminderStatus(str, Enum):
-    PENDING = "pending"
-    SENT = "sent"
+    AWAITING_PATIENT_CHOICE = "awaiting_patient_choice"
+    AWAITING_SCHEDULE_CHOICE = "awaiting_schedule_choice"
+    DECLINED = "declined"
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
     FAILED = "failed"
+
+
+class ReminderMode(str, Enum):
+    ABSOLUTE = "absolute"
+    RELATIVE = "relative"
+    WINDOW = "window"
+    CONDITIONAL = "conditional"
