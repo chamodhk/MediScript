@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Search,
-  Bell,
   RotateCcw,
   RotateCw,
   Trash2,
@@ -373,18 +371,6 @@ export default function MediScriptPrescriptionCanvas() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 lg:flex">
-                <Search className="h-4 w-4 text-slate-400" />
-                <input
-                  className="w-64 bg-transparent text-sm outline-none"
-                  placeholder="Search patients, records..."
-                />
-              </div>
-
-              <button className="rounded-full p-2 hover:bg-slate-100">
-                <Bell className="h-5 w-5 text-slate-500" />
-              </button>
-
               <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                 <div className="text-right leading-tight">
                   <p className="font-semibold">{doctorInfo.full_name}</p>
@@ -651,7 +637,7 @@ export default function MediScriptPrescriptionCanvas() {
           {palmRejection && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
               <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-              Pen mode active — touch input limited.
+              Palm rejection active — simultaneous multi-touch contacts will be ignored
             </div>
           )}
 
