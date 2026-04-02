@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
-from backend.models.translation import (
+from models.translation import (
     InstructionTranslationRequest,
     InstructionTranslationResponse,
 )
-from backend.services.translate_service import TranslationService
+from services.translate_service import TranslationService
 
 
 router = APIRouter(prefix="/translation", tags=["translation"])

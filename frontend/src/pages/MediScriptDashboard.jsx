@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import api from "../services/api";
 
@@ -602,6 +603,7 @@ const STATES = { IDLE: "idle", READY: "ready", RECORDING: "recording", PROCESSIN
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function MediScriptDashboard() {
+  const navigate = useNavigate();
   const [appState, setAppState] = useState(STATES.IDLE);
   const [patients, setPatients] = useState([]);
   const [patientId, setPatientId] = useState("");
@@ -1212,7 +1214,18 @@ export default function MediScriptDashboard() {
                 {appState === STATES.PROCESSING && "Analyzing audio session..."}
               </div>
               <div className="footer-actions">
-                <button className="btn-secondary">
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => {
+                    if (!patient||!consultationId) {
+                      alert("Please load a patient first before opening the Writing Pad.");
+                      return;
+                    }
+                    localStorage.setItem("currentPatient", JSON.stringify(patient));
+                    localStorage.setItem("currentConsultationId", consultationId.toString() );
+                    navigate("/prescription");
+                  }}
+                >
                   {appState === STATES.PROCESSING ? "Open Writing Pad" : "Open Writing Pad"}
                 </button>
                 <button className="btn-primary">
