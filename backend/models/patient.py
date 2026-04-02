@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Date, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Date, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -18,6 +18,7 @@ class Patient(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     preferred_language: Mapped[str] = mapped_column(String(5), default="en", nullable=False)
+    recording_consent: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="true")
     date_of_birth: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     token: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, index=True)
