@@ -1,18 +1,49 @@
-from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
+import base64
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from models.prescription import Prescription
 from services.pharmacy_service import assign_pharmacy
 
+
+def _decode_image(image_data: str | None):
+    if not image_data:
+        return None
+    if "," in image_data:
+        image_data = image_data.split(",")[1]
+    return base64.b64decode(image_data)
+
+
 async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime_type, db: AsyncSession):
     try:
-        assigned_pharmacy_id = pharmacy_id or await assign_pharmacy(db)
+        # Always auto-assign based on current pharmacy load.
+        pharmacy_id = await assign_pharmacy(db)
+
+        existing = await db.execute(
+            select(Prescription).where(Prescription.consultation_id == consultation_id)
+        )
+        row = existing.scalar_one_or_none()
+
+        img_bytes = _decode_image(image_data) if image_data else None
+
+        if row:
+            if img_bytes:
+                row.image_data = img_bytes
+            row.pharmacy_id = pharmacy_id
+            row.image_mime_type = image_mime_type or "image/png"
+            row.status = "pending"
+
+            await db.commit()
+            await db.refresh(row)
+            return row
+
         record = Prescription(
             consultation_id=consultation_id,
-            pharmacy_id=assigned_pharmacy_id,
-            image_data=image_data.encode() if image_data else None,
+            pharmacy_id=pharmacy_id,
+            image_data=img_bytes,
             image_mime_type=image_mime_type or "image/png",
-            status="pending"
+            status="pending",
         )
         db.add(record)
         await db.commit()
@@ -40,7 +71,9 @@ async def update_prescription(prescription_id: int, image_data, status, db: Asyn
         if not row:
             return None
         if image_data:
-            row.image_data = image_data.encode()
+            if "," in image_data:
+                image_data = image_data.split(",")[1]
+            row.image_data = base64.b64decode(image_data)
         if status:
             row.status = status
         await db.commit()
