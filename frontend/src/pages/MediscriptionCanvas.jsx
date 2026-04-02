@@ -357,6 +357,7 @@ export default function MediScriptPrescriptionCanvas() {
       }
 
       alert("Prescription saved successfully");
+      navigate("/doctor");
     } catch (error) {
       console.error("Save error:", error);
       alert(`Failed to save prescription: ${error.message}`);
