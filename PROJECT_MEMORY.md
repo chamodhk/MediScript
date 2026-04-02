@@ -28,6 +28,7 @@
 
 ## Changelog
 
+- **2026-04-02:** Patient recording consent preference added to DB schema. `backend/models/patient.py` now includes `recording_consent` (Boolean, default `true`, non-null). New Alembic migration `cafe245ac3d2_add_recording_consent_to_patients.py` generated and applied (`alembic upgrade head`). Verified with SQL query: existing patient rows return `recording_consent = true`.
 - **2026-04-01:** Pharmacy portal frontend implemented end-to-end: `services/pharmacyApi.js` (Bearer interceptor + queue/stats/status APIs + blob image fetch), `components/pharmacy/{StatusBadge,PrescriptionCard,QueuePanel,DetailPanel,PharmacyHeader}.jsx`, and `pages/PharmacyPortal.jsx` (10s polling, filter, selection persistence, status advance flow, loading skeletons, fetch error banner, last-updated indicator).
 - **2026-04-01:** Pharmacy image auth/display fix completed: frontend now fetches image as blob via authenticated Axios request and renders object URL; blob URLs are revoked on cleanup to avoid leaks. Backend image endpoint returns JSON `404` with `"No image available for this prescription"` for empty/missing image and guarded `500` on DB/stream errors.
 - **2026-04-01:** Pharmacy process unit tests added in `tests/test_pharmacy_process.py` (10 tests) covering assignment, status transition validation, queue FIFO shaping, image endpoint success/error paths, and stats; verified passing with `cd backend && ./.venv/bin/python -m unittest discover -s ../tests -p "test_pharmacy_process.py" -v`.
@@ -96,7 +97,7 @@ See detailed palette in`tailwind.config.js`.
 | Table           | Key columns                                                                                                                                 |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `users`         | id, email (unique), password_hash, full_name, role (`UserRole` enum: admin/doctor/pharmacist), is_active                                    |
-| `patients`      | id, name, phone (unique), preferred_language, date_of_birth, age, token (unique, pre-seeded)                                                |
+| `patients`      | id, name, phone (unique), preferred_language, recording_consent (boolean, default true), date_of_birth, age, token (unique, pre-seeded)     |
 | `consultations` | id, patient_id (FK), doctor_id (FK → users), transcript, structured_output (JSON), audio_file_path, status (`ConsultationStatus`)           |
 | `prescriptions` | id, consultation_id (FK, unique), pharmacy_id (FK), image_path (optional), image_data (BLOB), image_mime_type (default `image/png`), status |
 | `pharmacies`    | id, name, is_available                                                                                                                      |
@@ -112,7 +113,7 @@ See detailed palette in`tailwind.config.js`.
 /home/rumeshchathuranga/miniconda3/bin/alembic upgrade head
 ```
 
-Migrations: `3ea0854ac8ee` → `23de54475b85` (role + prescription image) → `60eabfecebca` (`ConsultationStatus`, `ReminderType`, `ReminderStatus` enums)
+Migrations: `3ea0854ac8ee` → `23de54475b85` (role + prescription image) → `60eabfecebca` (`ConsultationStatus`, `ReminderType`, `ReminderStatus` enums) → `cafe245ac3d2` (patients.recording_consent)
 
 ### ⚠️ Migration rules
 
@@ -213,7 +214,4 @@ Demo patients (pre-seeded with tokens):
 
 ## MCP Servers
 
-
 ## WE MUST CHANGE THE frontend files..A bunch of files has been made and it is not good
-
-
