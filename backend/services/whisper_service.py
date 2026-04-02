@@ -1,7 +1,8 @@
-import whisper
 import os
 import gc
-import torch
+from faster_whisper import WhisperModel
+
+
 class WhisperService:
     def __init__(self, model_size="small"):
         self.model_size = model_size
@@ -9,23 +10,21 @@ class WhisperService:
 
     def load_model(self):
         if self.model is None:
-            self.model = whisper.load_model(self.model_size)
+            # Use CPU by default to avoid hard CUDA requirements in local dev.
+            self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
 
     def unload_model(self):
         if self.model is not None:
             del self.model
             self.model = None
             gc.collect()
-            torch.cuda.empty_cache()
-            print("Model unloaded and GPU memory cleared.")
+            print("Model unloaded and memory cleared.")
 
     def transcribe(self, audio_path): 
         try:
             self.load_model()
-            result = self.model.transcribe(audio_path,language =None,task="transcribe")#auto-detect language, force transcription task
-
-            raw_text = result["text"].strip()
-            '''print(f"Transcription result: {raw_text}")'''
+            segments, _ = self.model.transcribe(audio_path)
+            raw_text = " ".join(segment.text for segment in segments).strip()
 
             self.unload_model()  # Unload the model after transcription to free up GPU memory
 
