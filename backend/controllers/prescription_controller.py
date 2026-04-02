@@ -3,8 +3,16 @@ import base64
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.consultation import Consultation
+from models.patient import Patient
+from models.pharmacy import Pharmacy
 from models.prescription import Prescription
 from services.pharmacy_service import assign_pharmacy
+from services.translate_service import TranslationService
+from services.twilio_service import send_whatsapp_message
+
+
+translator = TranslationService()
 
 
 
@@ -59,6 +67,56 @@ def _decode_image(image_data: str | None):
     return base64.b64decode(image_data)
 
 
+def _translate_if_needed(text: str, preferred_language: str | None) -> str:
+    language = (preferred_language or "en").strip().lower()
+    if language == "si":
+        return translator.translate_to_sinhala(text)
+    return text
+
+
+def _build_pharmacy_assignment_message(pharmacy_name: str, preferred_language: str | None) -> str:
+    message = (
+        f"Your prescription has been assigned to {pharmacy_name}. "
+        "The pharmacy will prepare it and update you when needed."
+    )
+    return _translate_if_needed(message, preferred_language)
+
+
+async def _notify_patient_about_pharmacy_assignment(
+    consultation_id: int,
+    pharmacy_id: int,
+    db: AsyncSession,
+) -> None:
+    consultation_result = await db.execute(
+        select(Consultation).where(Consultation.id == consultation_id)
+    )
+    consultation = consultation_result.scalar_one_or_none()
+    if consultation is None:
+        return
+
+    patient_result = await db.execute(
+        select(Patient).where(Patient.id == consultation.patient_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient is None or not patient.phone:
+        return
+
+    pharmacy_result = await db.execute(
+        select(Pharmacy).where(Pharmacy.id == pharmacy_id)
+    )
+    pharmacy = pharmacy_result.scalar_one_or_none()
+    if pharmacy is None:
+        return
+
+    send_whatsapp_message(
+        to_number=patient.phone,
+        message_body=_build_pharmacy_assignment_message(
+            pharmacy_name=pharmacy.name,
+            preferred_language=patient.preferred_language,
+        ),
+    )
+
+
 async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime_type, db: AsyncSession):
     try:
         # Always auto-assign based on current pharmacy load.
@@ -72,6 +130,7 @@ async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime
         img_bytes = _decode_image(image_data) if image_data else None
 
         if row:
+            previous_pharmacy_id = row.pharmacy_id
             if img_bytes:
                 row.image_data = img_bytes
             row.pharmacy_id = pharmacy_id
@@ -80,6 +139,12 @@ async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime
 
             await db.commit()
             await db.refresh(row)
+            if previous_pharmacy_id != pharmacy_id:
+                await _notify_patient_about_pharmacy_assignment(
+                    consultation_id=consultation_id,
+                    pharmacy_id=pharmacy_id,
+                    db=db,
+                )
             return row
 
         record = Prescription(
@@ -93,6 +158,11 @@ async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime
         db.add(record)
         await db.commit()
         await db.refresh(record)
+        await _notify_patient_about_pharmacy_assignment(
+            consultation_id=consultation_id,
+            pharmacy_id=pharmacy_id,
+            db=db,
+        )
         return record
 
     except Exception as e:
