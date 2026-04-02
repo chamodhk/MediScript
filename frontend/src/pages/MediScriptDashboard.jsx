@@ -729,7 +729,7 @@ export default function MediScriptDashboard() {
             <span className="pulse-icon"><PulseIcon size={18} /></span>
             MediScript
           </div>
-          <button className="nav-btn active"><GridIcon size={14} /> Dashboard</button>
+          <button className="nav-btn active" onClick={()=>navigate("/doctor")}><GridIcon size={14} /> Dashboard</button>
           {/* <button className="nav-btn"><PenIcon size={14} /> Writing Pad</button> */}
           <div className="nav-spacer" />
           {/* Bell, New Session, and Submit removed */}
