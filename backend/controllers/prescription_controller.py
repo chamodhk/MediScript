@@ -1,6 +1,8 @@
-from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
+import base64
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from models.prescription import Prescription
 import base64
 
@@ -63,8 +65,20 @@ def _decode_image(image_data: str | None):
     return base64.b64decode(image_data)
 
 
+
+def _decode_image(image_data: str | None):
+    if not image_data:
+        return None
+    if "," in image_data:
+        image_data = image_data.split(",")[1]
+    return base64.b64decode(image_data)
+
+
 async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime_type, db: AsyncSession):
     try:
+        # Always auto-assign based on current pharmacy load.
+        pharmacy_id = await assign_pharmacy(db)
+
         existing = await db.execute(
             select(Prescription).where(Prescription.consultation_id == consultation_id)
         )
@@ -88,7 +102,7 @@ async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime
             pharmacy_id=pharmacy_id,
             image_data=img_bytes,
             image_mime_type=image_mime_type or "image/png",
-            status="pending"
+            status="pending",
         )
 
         db.add(record)
@@ -123,7 +137,6 @@ async def update_prescription(prescription_id: int, image_data, status, db: Asyn
             if "," in image_data:
                 image_data = image_data.split(",")[1]
             row.image_data = base64.b64decode(image_data)
-
         if status:
             row.status = status
         await db.commit()
