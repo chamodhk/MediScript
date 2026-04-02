@@ -32,6 +32,39 @@ const clinicalPhrases = [
   "Monitor BP daily",
 ];
 
+// Normalize patient object regardless of which field names the API uses
+const normalizePatient = (raw) => {
+  if (!raw) return null;
+  return {
+    full_name:
+      raw.full_name ||
+      raw.name ||
+      raw.patient_name ||
+      raw.fullName ||
+      "",
+    age:
+      raw.age ||
+      raw.patient_age ||
+      raw.patientAge ||
+      "",
+    sex:
+      raw.sex ||
+      raw.gender ||
+      raw.patient_gender ||
+      "",
+    id:
+      raw.id ||
+      raw.patient_id ||
+      raw.patientId ||
+      "",
+    allergies:
+      raw.allergies ||
+      raw.allergy_list ||
+      raw.allergyList ||
+      [],
+  };
+};
+
 export default function MediScriptPrescriptionCanvas() {
   const navigate = useNavigate();
   const [tool, setTool] = useState("pen");
@@ -44,17 +77,19 @@ export default function MediScriptPrescriptionCanvas() {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [savedPrescriptionId, setSavedPrescriptionId] = useState(null);
-  const [doctorInfo, setDoctorInfo] = useState({ full_name: "Dr. [Name]", role: "[Specialty]" });
+  const [doctorInfo, setDoctorInfo] = useState({
+    full_name: "Dr. [Name]",
+    role: "[Specialty]",
+  });
   const [patientInfo, setPatientInfo] = useState(null);
   const [consultationId, setConsultationId] = useState(null);
-  const [pharmacyId, setPharmacyId] = useState(1);
+  const [pharmacyId] = useState(1);
 
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
-  // Keep a ref so event handlers always see the latest palmRejection value
   const palmRejectionRef = useRef(palmRejection);
 
   const API_BASE = "http://127.0.0.1:8000";
@@ -62,11 +97,12 @@ export default function MediScriptPrescriptionCanvas() {
   const colors = useMemo(() => ["#111827", "#1d4ed8", "#e11d48"], []);
   const sizes = useMemo(() => [4, 6, 10], []);
 
-  // Keep ref in sync whenever state changes
+  // Keep palm rejection ref in sync
   useEffect(() => {
     palmRejectionRef.current = palmRejection;
   }, [palmRejection]);
 
+  // ── Fetch doctor info ──────────────────────────────────────────────────────
   useEffect(() => {
     const fetchDoctorInfo = async () => {
       try {
@@ -82,24 +118,74 @@ export default function MediScriptPrescriptionCanvas() {
     fetchDoctorInfo();
   }, []);
 
-  useEffect(() => {
-    try {
-      const savedPatient = localStorage.getItem("currentPatient");
-      if (savedPatient) setPatientInfo(JSON.parse(savedPatient));
-    } catch (error) {
-      console.error("Failed to load patient info:", error);
-    }
-  }, []);
-
+  // ── Load consultation ID ───────────────────────────────────────────────────
   useEffect(() => {
     try {
       const savedConsultationId = localStorage.getItem("currentConsultationId");
-      if (savedConsultationId) setConsultationId(parseInt(savedConsultationId));
+      if (savedConsultationId) {
+        setConsultationId(parseInt(savedConsultationId, 10));
+      }
     } catch (error) {
       console.error("Failed to load consultation ID:", error);
     }
   }, []);
 
+  // ── Load patient info (fixed) ──────────────────────────────────────────────
+  // Strategy:
+  //   1. Try localStorage key "currentPatient" (normalize field names)
+  //   2. Fallback: fetch from API using consultationId
+  useEffect(() => {
+    const loadPatient = async () => {
+      // Step 1 — localStorage
+      try {
+        const raw = localStorage.getItem("currentPatient");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const normalized = normalizePatient(parsed);
+          if (normalized && normalized.full_name) {
+            setPatientInfo(normalized);
+            return; // done — no need for API call
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse currentPatient from localStorage:", error);
+      }
+
+      // Step 2 — API fallback using consultationId
+      const rawConsultationId = localStorage.getItem("currentConsultationId");
+      if (!rawConsultationId) return;
+
+      try {
+        // Try a few common endpoint patterns; adjust to match your backend
+        const res = await api.get(
+          `/consultations/${rawConsultationId}/patient`
+        );
+        const normalized = normalizePatient(res.data);
+        if (normalized) {
+          setPatientInfo(normalized);
+          // Cache for next time
+          localStorage.setItem("currentPatient", JSON.stringify(res.data));
+        }
+      } catch {
+        // Try alternative endpoint shape
+        try {
+          const res2 = await api.get(
+            `/consultations/${rawConsultationId}`
+          );
+          const patient =
+            res2.data?.patient || res2.data?.patientInfo || res2.data;
+          const normalized = normalizePatient(patient);
+          if (normalized) setPatientInfo(normalized);
+        } catch (err2) {
+          console.error("All patient fetch attempts failed:", err2);
+        }
+      }
+    };
+
+    loadPatient();
+  }, []); // runs once on mount — consultationId from localStorage directly
+
+  // ── Canvas setup & resize ──────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -107,7 +193,10 @@ export default function MediScriptPrescriptionCanvas() {
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       const rect = parent.getBoundingClientRect();
-      const oldImage = canvas.width > 0 && canvas.height > 0 ? canvas.toDataURL("image/png") : null;
+      const oldImage =
+        canvas.width > 0 && canvas.height > 0
+          ? canvas.toDataURL("image/png")
+          : null;
 
       canvas.width = Math.max(900, Math.floor(rect.width - 8));
       canvas.height = 640;
@@ -118,7 +207,8 @@ export default function MediScriptPrescriptionCanvas() {
 
       if (oldImage && oldImage !== "data:,") {
         const img = new Image();
-        img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        img.onload = () =>
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         img.src = oldImage;
       }
     };
@@ -129,8 +219,10 @@ export default function MediScriptPrescriptionCanvas() {
     loadLatestPrescription();
 
     return () => window.removeEventListener("resize", resizeCanvas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Drawing helpers ────────────────────────────────────────────────────────
   const getCoordinates = (event) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -172,12 +264,10 @@ export default function MediScriptPrescriptionCanvas() {
     img.src = imageData;
   };
 
-  // ── PALM REJECTION: block if more than 1 simultaneous touch point ──────────
+  // ── Palm rejection ─────────────────────────────────────────────────────────
   const isPalmTouch = (event) => {
     if (!palmRejectionRef.current) return false;
-    // If it's a touch event with more than 1 finger/contact → treat as palm
     if (event.touches && event.touches.length > 1) return true;
-    // If radiusX/radiusY are available and very large → likely a palm
     if (event.touches && event.touches.length === 1) {
       const touch = event.touches[0];
       if (touch.radiusX && touch.radiusY) {
@@ -189,7 +279,7 @@ export default function MediScriptPrescriptionCanvas() {
 
   const startDrawing = (event) => {
     event.preventDefault();
-    if (isPalmTouch(event)) return; // ← palm rejected
+    if (isPalmTouch(event)) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -206,7 +296,6 @@ export default function MediScriptPrescriptionCanvas() {
     if (!isDrawingRef.current) return;
     event.preventDefault();
     if (isPalmTouch(event)) {
-      // Palm detected mid-stroke — stop the current stroke cleanly
       stopDrawing();
       return;
     }
@@ -240,13 +329,17 @@ export default function MediScriptPrescriptionCanvas() {
     redoStackRef.current = [];
   };
 
-  const handleQuickInsert = (item) => setAddedMeds((prev) => [...prev, item]);
+  // ── Actions ────────────────────────────────────────────────────────────────
+  const handleQuickInsert = (item) =>
+    setAddedMeds((prev) => [...prev, item]);
 
   const handleUndo = () => {
     if (undoStackRef.current.length <= 1) return;
     const currentState = undoStackRef.current.pop();
     redoStackRef.current.push(currentState);
-    restoreCanvasState(undoStackRef.current[undoStackRef.current.length - 1]);
+    restoreCanvasState(
+      undoStackRef.current[undoStackRef.current.length - 1]
+    );
   };
 
   const handleRedo = () => {
@@ -268,9 +361,12 @@ export default function MediScriptPrescriptionCanvas() {
   };
 
   const loadLatestPrescription = async () => {
-    if (!consultationId) return;
+    const rawId = localStorage.getItem("currentConsultationId");
+    if (!rawId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/prescriptions/session/${consultationId}`);
+      const res = await fetch(
+        `${API_BASE}/api/prescriptions/session/${rawId}`
+      );
       if (!res.ok) throw new Error("Failed to load previous prescriptions");
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
@@ -308,8 +404,11 @@ export default function MediScriptPrescriptionCanvas() {
   };
 
   const handleSavePrescription = async () => {
-    if (!consultationId) {
-      alert("Consultation ID not found. Please return to dashboard and reload patient.");
+    const rawId = localStorage.getItem("currentConsultationId");
+    if (!rawId) {
+      alert(
+        "Consultation ID not found. Please return to dashboard and reload patient."
+      );
       return;
     }
     const imageData = canvasRef.current.toDataURL("image/png");
@@ -319,7 +418,7 @@ export default function MediScriptPrescriptionCanvas() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          consultation_id: consultationId,
+          consultation_id: parseInt(rawId, 10),
           pharmacy_id: pharmacyId,
           image_data: imageData,
           image_mime_type: "image/png",
@@ -342,13 +441,13 @@ export default function MediScriptPrescriptionCanvas() {
     }
   };
 
-  // ── FOCUS MODE: hides sidebar, expands canvas, removes UI distractions ──────
   const isFocus = canvasMode === "focus";
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-slate-900">
 
-      {/* Hide header in focus mode */}
+      {/* Standard header */}
       {!isFocus && (
         <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -390,7 +489,7 @@ export default function MediScriptPrescriptionCanvas() {
         </header>
       )}
 
-      {/* Focus mode minimal top bar */}
+      {/* Focus mode minimal bar */}
       {isFocus && (
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
           <div className="flex items-center gap-3 font-semibold text-blue-600">
@@ -411,13 +510,15 @@ export default function MediScriptPrescriptionCanvas() {
       <main
         className={`grid min-h-[calc(100vh-88px)] gap-6 p-6 ${
           isFocus
-            ? "grid-cols-1"                                      // full width in focus
-            : "grid-cols-1 xl:grid-cols-[290px_minmax(0,1fr)]"  // sidebar + canvas normally
+            ? "grid-cols-1"
+            : "grid-cols-1 xl:grid-cols-[290px_minmax(0,1fr)]"
         }`}
       >
-        {/* Sidebar — hidden in focus mode */}
+        {/* ── Sidebar ── */}
         {!isFocus && (
           <aside className="space-y-5">
+
+            {/* Patient Info card */}
             <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
               <div className="mb-4 flex items-start justify-between">
                 <h3 className="text-2xl font-bold">Patient Info</h3>
@@ -426,55 +527,90 @@ export default function MediScriptPrescriptionCanvas() {
                 </span>
               </div>
 
-              <div className="space-y-4 text-sm">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Full Name</p>
-                  <p className="mt-1 text-lg font-semibold">{patientInfo?.full_name || "—"}</p>
-                </div>
+              {/* Loading state */}
+              {!patientInfo && (
+                <p className="text-sm text-slate-400 italic">
+                  Loading patient data…
+                </p>
+              )}
 
-                <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4">
+              {patientInfo && (
+                <div className="space-y-4 text-sm">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Age / Sex</p>
-                    <p className="mt-1 font-semibold">
-                      {patientInfo?.age && patientInfo?.sex ? `${patientInfo.age}Y / ${patientInfo.sex}` : "—"}
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Full Name
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {patientInfo.full_name || "—"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">ID</p>
-                    <p className="mt-1 font-semibold">{patientInfo?.id ? `#${patientInfo.id}` : "—"}</p>
-                  </div>
-                </div>
 
-                <div className="border-t border-slate-200 pt-4">
-                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <Circle className="h-3 w-3 fill-rose-500 text-rose-500" />
-                    Critical Allergies
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {patientInfo?.allergies && patientInfo.allergies.length > 0 ? (
-                      patientInfo.allergies.map((allergy, idx) => (
-                        <span key={idx} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
-                          {allergy}
+                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Age
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {patientInfo.age && patientInfo.sex
+                          ? `${patientInfo.age}Y / ${patientInfo.sex}`
+                          : patientInfo.age
+                          ? `${patientInfo.age}Y`
+                          : patientInfo.sex
+                          ? patientInfo.sex
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        ID
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {patientInfo.id ? `#${patientInfo.id}` : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-4">
+                    <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <Circle className="h-3 w-3 fill-rose-500 text-rose-500" />
+                      Critical Allergies
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {patientInfo.allergies &&
+                      patientInfo.allergies.length > 0 ? (
+                        patientInfo.allergies.map((allergy, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700"
+                          >
+                            {allergy}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-slate-500">
+                          No allergies recorded
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-slate-500">No allergies recorded</span>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
+            {/* Last prescription */}
             <div className="rounded-3xl bg-[#f7fbff] p-5 shadow-sm ring-1 ring-slate-200">
               <div className="mb-4 flex items-center gap-2 font-semibold">
                 <Stethoscope className="h-4 w-4 text-blue-600" />
                 Last Prescription
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="font-semibold text-slate-500">No previous prescriptions</p>
+                <p className="font-semibold text-slate-500">
+                  No previous prescriptions
+                </p>
               </div>
             </div>
 
+            {/* Clinical phrases */}
             <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
               <h4 className="mb-4 text-lg font-semibold">Clinical Phrases</h4>
               <div className="space-y-3">
@@ -507,7 +643,6 @@ export default function MediScriptPrescriptionCanvas() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* ── PALM REJECTION BUTTON — now functional ── */}
               <button
                 onClick={() => setPalmRejection((v) => !v)}
                 className={`rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition ${
@@ -515,20 +650,33 @@ export default function MediScriptPrescriptionCanvas() {
                     ? "bg-blue-600 text-white"
                     : "bg-white text-slate-700 ring-1 ring-slate-200"
                 }`}
-                title={palmRejection ? "Palm Rejection is ON — multi-touch blocked" : "Palm Rejection is OFF"}
+                title={
+                  palmRejection
+                    ? "Palm Rejection is ON — multi-touch blocked"
+                    : "Palm Rejection is OFF"
+                }
               >
-                {palmRejection ? "🤚 Palm Rejection: ON" : "🤚 Palm Rejection: OFF"}
+                {palmRejection
+                  ? "🤚 Palm Rejection: ON"
+                  : "🤚 Palm Rejection: OFF"}
               </button>
 
-              {/* ── FOCUS MODE BUTTON — now functional ── */}
               <button
-                onClick={() => setCanvasMode((prev) => prev === "standard" ? "focus" : "standard")}
+                onClick={() =>
+                  setCanvasMode((prev) =>
+                    prev === "standard" ? "focus" : "standard"
+                  )
+                }
                 className={`rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition ${
                   isFocus
                     ? "bg-slate-800 text-white"
                     : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
                 }`}
-                title={isFocus ? "Exit Focus Mode" : "Enter Focus Mode — hides sidebar and header"}
+                title={
+                  isFocus
+                    ? "Exit Focus Mode"
+                    : "Enter Focus Mode — hides sidebar and header"
+                }
               >
                 {isFocus ? "⛶ Exit Focus" : "⛶ Focus Mode"}
               </button>
@@ -542,7 +690,9 @@ export default function MediScriptPrescriptionCanvas() {
                 <button
                   onClick={() => setTool("pen")}
                   className={`flex min-w-[88px] flex-col items-center rounded-2xl px-4 py-3 text-xs font-semibold ${
-                    tool === "pen" ? "bg-blue-50 text-blue-600" : "bg-slate-50 text-slate-500"
+                    tool === "pen"
+                      ? "bg-blue-50 text-blue-600"
+                      : "bg-slate-50 text-slate-500"
                   }`}
                 >
                   <PenTool className="mb-1 h-4 w-4" />
@@ -552,7 +702,9 @@ export default function MediScriptPrescriptionCanvas() {
                 <button
                   onClick={() => setTool("eraser")}
                   className={`flex min-w-[88px] flex-col items-center rounded-2xl px-4 py-3 text-xs font-semibold ${
-                    tool === "eraser" ? "bg-blue-50 text-blue-600" : "bg-slate-50 text-slate-500"
+                    tool === "eraser"
+                      ? "bg-blue-50 text-blue-600"
+                      : "bg-slate-50 text-slate-500"
                   }`}
                 >
                   <Eraser className="mb-1 h-4 w-4" />
@@ -571,7 +723,9 @@ export default function MediScriptPrescriptionCanvas() {
                     >
                       <span
                         className={`block h-10 w-10 rounded-full border-4 ${
-                          brushColor === color ? "border-slate-800/90" : "border-transparent"
+                          brushColor === color
+                            ? "border-slate-800/90"
+                            : "border-transparent"
                         }`}
                         style={{ backgroundColor: color }}
                       />
@@ -587,7 +741,9 @@ export default function MediScriptPrescriptionCanvas() {
                       key={size}
                       onClick={() => setBrushSize(size)}
                       className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
-                        brushSize === size ? "bg-slate-100 ring-2 ring-blue-200" : "bg-slate-50"
+                        brushSize === size
+                          ? "bg-slate-100 ring-2 ring-blue-200"
+                          : "bg-slate-50"
                       }`}
                     >
                       <span
@@ -633,14 +789,16 @@ export default function MediScriptPrescriptionCanvas() {
             </div>
           </div>
 
-          {/* Palm rejection status indicator */}
+          {/* Palm rejection indicator */}
           {palmRejection && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
               <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-              Palm rejection active — simultaneous multi-touch contacts will be ignored
+              Palm rejection active — simultaneous multi-touch contacts will be
+              ignored
             </div>
           )}
 
+          {/* Canvas card */}
           <div className="rounded-[32px] bg-white shadow-xl ring-1 ring-slate-200">
             <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_220px]">
               <div className="relative min-h-[760px] rounded-[28px] border border-slate-200 bg-white p-4">
@@ -669,7 +827,8 @@ export default function MediScriptPrescriptionCanvas() {
                       className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-medium shadow-sm"
                     >
                       <span className="mr-2 font-bold text-slate-400">Rx</span>
-                      {med.name} <span className="text-slate-500">{med.dose}</span>
+                      {med.name}{" "}
+                      <span className="text-slate-500">{med.dose}</span>
                     </div>
                   ))}
                 </div>
@@ -679,6 +838,7 @@ export default function MediScriptPrescriptionCanvas() {
                 </button>
               </div>
 
+              {/* Quick insert sidebar */}
               <div className="space-y-4">
                 <p className="pt-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">
                   Prescribe Quick-Insert
@@ -702,10 +862,13 @@ export default function MediScriptPrescriptionCanvas() {
               </div>
             </div>
 
+            {/* Footer actions */}
             <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-6 text-sm text-slate-600">
                 <span>Session: #RH-Henderson-Active</span>
-                {savedPrescriptionId && <span>Prescription ID: #{savedPrescriptionId}</span>}
+                {savedPrescriptionId && (
+                  <span>Prescription ID: #{savedPrescriptionId}</span>
+                )}
 
                 <button className="flex items-center gap-2 font-medium hover:text-slate-900">
                   <Printer className="h-4 w-4" />
@@ -739,15 +902,20 @@ export default function MediScriptPrescriptionCanvas() {
                   className="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   <CheckCircle2 className="h-5 w-5" />
-                  {isSaving ? "Saving..." : "Save & Attach to Patient Record"}
+                  {isSaving
+                    ? "Saving..."
+                    : "Save & Attach to Patient Record"}
                 </button>
               </div>
             </div>
           </div>
 
+          {/* Saved canvas preview */}
           {savedImage && (
             <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h3 className="mb-4 text-lg font-semibold">Saved Canvas Preview</h3>
+              <h3 className="mb-4 text-lg font-semibold">
+                Saved Canvas Preview
+              </h3>
               <img
                 src={savedImage}
                 alt="Saved prescription canvas"
