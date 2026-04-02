@@ -26,10 +26,10 @@ const quickInsertData = [
 ];
 
 const clinicalPhrases = [
-  "Take with meals",
-  "Finish full course",
+  "Get plenty of rest",
+  "Report any unusual symptoms",
   "Avoid alcohol",
-  "Monitor BP daily",
+  "Seek medical attention if worsens",
 ];
 
 // Normalize patient object regardless of which field names the API uses
