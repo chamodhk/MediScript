@@ -68,13 +68,6 @@ const ShieldIcon = ({ size = 14 }) => (
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 );
-const BellIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </svg>
-);
 const ClockIcon = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -111,14 +104,6 @@ const PenIcon = ({ size = 16 }) => (
     stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="2" x2="22" y2="6" />
     <path d="M7.5 20.5 19 9l-4-4L3.5 16.5 2 22z" />
-  </svg>
-);
-const PlusCircleIcon = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="16" />
-    <line x1="8" y1="12" x2="16" y2="12" />
   </svg>
 );
 const LanguageIcon = ({ size = 14 }) => (
@@ -197,20 +182,6 @@ const css = `
   }
   .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,.1); color: #fff; }
   .nav-spacer { flex: 1; }
-  .nav-new-btn {
-    display: flex; align-items: center; gap: 6px;
-    padding: 7px 16px; border-radius: 20px;
-    border: 1.5px solid rgba(255,255,255,.3);
-    background: transparent; color: #fff;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    font-family: var(--font); transition: all .2s;
-  }
-  .nav-new-btn:hover { background: var(--blue); border-color: var(--blue); }
-  .nav-icon-btn {
-    background: none; border: none; cursor: pointer; color: rgba(255,255,255,.7);
-    padding: 6px; border-radius: 6px; transition: all .15s; display: flex;
-  }
-  .nav-icon-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
   .nav-avatar {
     width: 34px; height: 34px; border-radius: 50%;
     background: linear-gradient(135deg, #60a5fa, #818cf8);
@@ -598,7 +569,6 @@ const css = `
 `;
 
 // ── App State Enum ────────────────────────────────────────────────────────────
-// IDLE → READY_WITH_PATIENT → RECORDING → PROCESSING
 const STATES = { IDLE: "idle", READY: "ready", RECORDING: "recording", PROCESSING: "processing" };
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -616,7 +586,6 @@ export default function MediScriptDashboard() {
   const intervalRef = useRef(null);
   const { isRecording, audioBlob, startRecording: recordStart, stopRecording: recordStop, setAudioBlob } = useAudioRecorder();
 
-  // Fetch all patients on component mount
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -641,10 +610,9 @@ export default function MediScriptDashboard() {
 
     try {
       setLoading(true);
-      // Create a new consultation record for this patient
       const consultationResponse = await api.post("/consultations", {
         patient_id: selectedPatient.id,
-        doctor_id: 1, // This should come from logged-in user context
+        doctor_id: 1,
       });
 
       if (consultationResponse.data && consultationResponse.data.id) {
@@ -668,10 +636,10 @@ export default function MediScriptDashboard() {
       });
       return;
     }
-    
+
     setLoading(true);
-    const audioSize = (audioData.size / 1024 / 1024).toFixed(2); // MB
-    
+    const audioSize = (audioData.size / 1024 / 1024).toFixed(2);
+
     console.log("🎤 AUDIO UPLOAD STARTED", {
       consultationId,
       audioFormat: audioData.type,
@@ -680,14 +648,9 @@ export default function MediScriptDashboard() {
     });
 
     try {
-      // Create FormData with audio file
       const formData = new FormData();
       formData.append("audio", audioData, "recording.webm");
 
-      console.log("📤 Sending audio to backend...");
-      
-      // Send to backend with consultation ID
-      // Don't set Content-Type header - let axios/browser handle it for multipart
       const response = await api.post(
         `/transcription/transcribe/${consultationId}`,
         formData
@@ -698,16 +661,11 @@ export default function MediScriptDashboard() {
         hasTranscript: !!response.data.raw_transcript,
         transcriptLength: response.data.raw_transcript?.length || 0,
         hasStructured: !!response.data.structured,
-        processingTime: "See backend logs",
         timestamp: new Date().toLocaleTimeString()
       });
 
-      // Handle response
       if (response.data.raw_transcript) {
         setTranscript(response.data);
-        console.log("✨ Transcription successful");
-        console.log("📝 Raw Transcript:", response.data.raw_transcript.substring(0, 200) + "...");
-        console.log("📊 Structured Output:", response.data.structured);
       }
     } catch (error) {
       console.error("❌ TRANSCRIPTION ERROR", {
@@ -736,7 +694,6 @@ export default function MediScriptDashboard() {
     setAppState(STATES.PROCESSING);
   };
 
-  // Auto-send audio to backend when recording stops and audioBlob is ready
   useEffect(() => {
     if (audioBlob && appState === STATES.PROCESSING && consultationId && !loading) {
       sendAudioToBackend(audioBlob);
@@ -773,12 +730,9 @@ export default function MediScriptDashboard() {
             MediScript
           </div>
           <button className="nav-btn active"><GridIcon size={14} /> Dashboard</button>
-          <button className="nav-btn"><PenIcon size={14} /> Writing Pad</button>
+          {/* <button className="nav-btn"><PenIcon size={14} /> Writing Pad</button> */}
           <div className="nav-spacer" />
-          <button className="nav-new-btn" onClick={newSession}>
-            <PlusCircleIcon size={14} /> New Session
-          </button>
-          <button className="nav-icon-btn"><BellIcon size={18} /></button>
+          {/* Bell, New Session, and Submit removed */}
           <div className="nav-avatar">
             DR<div className="dot" />
           </div>
@@ -788,22 +742,21 @@ export default function MediScriptDashboard() {
         <div className="body">
           {/* ── SIDEBAR ── */}
           <aside className="sidebar">
-            {/* Patient Section */}
             {appState === STATES.IDLE && (
               <>
                 <div>
                   <div className="sidebar-section-title"><UserIcon size={13} /> Patient Context</div>
                   <div className="label">Enter Patient ID</div>
                   <div className="input-row">
-                    <input 
-                      className="input" 
+                    <input
+                      className="input"
                       placeholder="e.g. 1, 2, 3"
-                      value={patientId} 
+                      value={patientId}
                       onChange={e => setPatientId(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && loadPatient()} 
+                      onKeyDown={e => e.key === "Enter" && loadPatient()}
                     />
-                    <button 
-                      className="btn-load" 
+                    <button
+                      className="btn-load"
                       onClick={loadPatient}
                       disabled={loading || !patientId.trim()}
                     >
@@ -867,54 +820,50 @@ export default function MediScriptDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <div>
-                      <div className="sidebar-section-title">System Status</div>
-                      <div className="status-box">
-                        <div className="status-box-title">System Status</div>
-                        <div className="status-row">
-                          <span className="status-key">Microphone</span>
-                          <span className="status-val green">Calibrated</span>
-                        </div>
-                        <div className="status-row">
-                          <span className="status-key">Transcription Engine</span>
-                          <span className="status-val green">Ready</span>
-                        </div>
-                        <div className="status-row">
-                          <span className="status-key">Cloud Sync</span>
-                          <span className="status-val blue">Encrypted</span>
-                        </div>
+                  <div>
+                    <div className="sidebar-section-title">System Status</div>
+                    <div className="status-box">
+                      <div className="status-box-title">System Status</div>
+                      <div className="status-row">
+                        <span className="status-key">Microphone</span>
+                        <span className="status-val green">Calibrated</span>
+                      </div>
+                      <div className="status-row">
+                        <span className="status-key">Transcription Engine</span>
+                        <span className="status-val green">Ready</span>
+                      </div>
+                      <div className="status-row">
+                        <span className="status-key">Cloud Sync</span>
+                        <span className="status-val blue">Encrypted</span>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             )}
 
             {appState === STATES.PROCESSING && patient && (
-              <>
-                <div>
-                  <div className="sidebar-section-title"><UserIcon size={13} /> Patient Information</div>
-                  <div className="patient-card">
-                    <div className="patient-row">
-                      <span className="key">Name</span>
-                      <span className="val">{patient.name}</span>
-                    </div>
-                    <div className="patient-row">
-                      <span className="key">Age / Sex</span>
-                      <span className="val">{patient.age} / {patient.sex}</span>
-                    </div>
-                    <div className="patient-row">
-                      <span className="key">Phone</span>
-                      <span className="val">{patient.phone || "N/A"}</span>
-                    </div>
-                    <div className="patient-row">
-                      <span className="key">Language</span>
-                      <span className="val">{patient.preferred_language || "Not specified"}</span>
-                    </div>
+              <div>
+                <div className="sidebar-section-title"><UserIcon size={13} /> Patient Information</div>
+                <div className="patient-card">
+                  <div className="patient-row">
+                    <span className="key">Name</span>
+                    <span className="val">{patient.name}</span>
+                  </div>
+                  <div className="patient-row">
+                    <span className="key">Age / Sex</span>
+                    <span className="val">{patient.age} / {patient.sex}</span>
+                  </div>
+                  <div className="patient-row">
+                    <span className="key">Phone</span>
+                    <span className="val">{patient.phone || "N/A"}</span>
+                  </div>
+                  <div className="patient-row">
+                    <span className="key">Language</span>
+                    <span className="val">{patient.preferred_language || "Not specified"}</span>
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </aside>
 
@@ -1072,7 +1021,6 @@ export default function MediScriptDashboard() {
               {/* ── PROCESSING STATE ── */}
               {appState === STATES.PROCESSING && (
                 <div className="grid-3" style={{ alignItems: "start" }}>
-                  {/* Middle: Recording + Transcript */}
                   <div style={{ gridColumn: "1 / 3", display: "flex", flexDirection: "column", gap: 16 }}>
                     <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1114,8 +1062,8 @@ export default function MediScriptDashboard() {
                                 Structured Output
                               </div>
                               <pre style={{ fontSize: 12, background: "#f8fafc", padding: 12, borderRadius: 6, overflow: "auto", maxHeight: 300 }}>
-                                {typeof transcript.structured === 'string' 
-                                  ? JSON.stringify(JSON.parse(transcript.structured), null, 2) 
+                                {typeof transcript.structured === 'string'
+                                  ? JSON.stringify(JSON.parse(transcript.structured), null, 2)
                                   : JSON.stringify(transcript.structured, null, 2)}
                               </pre>
                             </div>
@@ -1214,23 +1162,21 @@ export default function MediScriptDashboard() {
                 {appState === STATES.PROCESSING && "Analyzing audio session..."}
               </div>
               <div className="footer-actions">
-                <button 
-                  className="btn-secondary" 
+                <button
+                  className="btn-secondary"
                   onClick={() => {
-                    if (!patient||!consultationId) {
+                    if (!patient || !consultationId) {
                       alert("Please load a patient first before opening the Writing Pad.");
                       return;
                     }
                     localStorage.setItem("currentPatient", JSON.stringify(patient));
-                    localStorage.setItem("currentConsultationId", consultationId.toString() );
+                    localStorage.setItem("currentConsultationId", consultationId.toString());
                     navigate("/prescription");
                   }}
                 >
-                  {appState === STATES.PROCESSING ? "Open Writing Pad" : "Open Writing Pad"}
+                  Open Writing Pad
                 </button>
-                <button className="btn-primary">
-                  {appState === STATES.PROCESSING ? "Submit for Instructions" : "Submit"}
-                </button>
+                {/* Submit button removed */}
               </div>
             </div>
           </main>
