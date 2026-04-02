@@ -460,8 +460,6 @@ export default function MediScriptPrescriptionCanvas() {
                 <div className="flex flex-wrap gap-2">
                   {patientInfo?.allergies && patientInfo.allergies.length > 0 ? (
                     patientInfo.allergies.map((allergy, idx) => (
-62
-
                       <span key={idx} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
                         {allergy}
                       </span>
@@ -518,8 +516,6 @@ export default function MediScriptPrescriptionCanvas() {
                   palmRejection
                     ? "bg-blue-600 text-white"
                     : "bg-white text-slate-700 ring-1 ring-slate-200"
-62
-
                 }`}
               >
                 Palm Rejection
@@ -598,8 +594,6 @@ export default function MediScriptPrescriptionCanvas() {
                         brushSize === size
                           ? "bg-slate-100 ring-2 ring-blue-200"
                           : "bg-slate-50"
-62
-
                       }`}
                     >
                       <span

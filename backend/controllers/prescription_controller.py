@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.prescription import Prescription
-import base64
+from services.pharmacy_service import assign_pharmacy
 
 
 
@@ -50,21 +50,6 @@ import base64
 #     except Exception as e:
 #         await db.rollback()
 #         raise e
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from models.prescription import Prescription
-import base64
-
-
-def _decode_image(image_data: str | None):
-    if not image_data:
-        return None
-    if "," in image_data:
-        image_data = image_data.split(",")[1]
-    return base64.b64decode(image_data)
-
-
 
 def _decode_image(image_data: str | None):
     if not image_data:
