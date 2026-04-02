@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Search,
   Bell,
@@ -17,6 +18,7 @@ import {
   Activity,
   Circle,
 } from "lucide-react";
+import api from "../services/api";
 
 const quickInsertData = [
   { name: "Amoxicillin", dose: "500mg" },
@@ -33,6 +35,7 @@ const clinicalPhrases = [
 ];
 
 export default function MediScriptPrescriptionCanvas() {
+  const navigate = useNavigate();
   const [tool, setTool] = useState("pen");
   const [brushColor, setBrushColor] = useState("#111827");
   const [brushSize, setBrushSize] = useState(6);
@@ -43,6 +46,10 @@ export default function MediScriptPrescriptionCanvas() {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [savedPrescriptionId, setSavedPrescriptionId] = useState(null);
+  const [doctorInfo, setDoctorInfo] = useState({ full_name: "Dr. [Name]", role: "[Specialty]" });
+  const [patientInfo, setPatientInfo] = useState(null);
+  const [consultationId, setConsultationId] = useState(null);
+  const [pharmacyId, setPharmacyId] = useState(1);
 
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
@@ -50,12 +57,50 @@ export default function MediScriptPrescriptionCanvas() {
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
 
-  const CONSULTATION_ID = 1;
-  const PHARMACY_ID = 1;
   const API_BASE = "http://127.0.0.1:8000";
 
   const colors = useMemo(() => ["#111827", "#1d4ed8", "#e11d48"], []);
   const sizes = useMemo(() => [4, 6, 10], []);
+
+  // Fetch logged-in doctor's information
+  useEffect(() => {
+    const fetchDoctorInfo = async () => {
+      try {
+        const response = await api.get("/auth/me");
+        setDoctorInfo({
+          full_name: response.data.full_name || "Dr. [Name]",
+          role: response.data.role || "[Specialty]",
+        });
+      } catch (error) {
+        console.error("Failed to fetch doctor info:", error);
+      }
+    };
+    fetchDoctorInfo();
+  }, []);
+
+  // Load patient info from localStorage
+  useEffect(() => {
+    try {
+      const savedPatient = localStorage.getItem("currentPatient");
+      if (savedPatient) {
+        setPatientInfo(JSON.parse(savedPatient));
+      }
+    } catch (error) {
+      console.error("Failed to load patient info:", error);
+    }
+  }, []);
+
+  // Load consultation ID from localStorage
+  useEffect(() => {
+    try {
+      const savedConsultationId = localStorage.getItem("currentConsultationId");
+      if (savedConsultationId) {
+        setConsultationId(parseInt(savedConsultationId));
+      }
+    } catch (error) {
+      console.error("Failed to load consultation ID:", error);
+    }
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -223,8 +268,9 @@ export default function MediScriptPrescriptionCanvas() {
   };
 
   const loadLatestPrescription = async () => {
+    if (!consultationId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/prescriptions/session/${CONSULTATION_ID}`);
+      const res = await fetch(`${API_BASE}/api/prescriptions/session/${consultationId}`);
       if (!res.ok) {
         throw new Error("Failed to load previous prescriptions");
       }
@@ -275,6 +321,10 @@ export default function MediScriptPrescriptionCanvas() {
   };
 
   const handleSavePrescription = async () => {
+    if (!consultationId) {
+      alert("Consultation ID not found. Please return to dashboard and reload patient.");
+      return;
+    }
     const imageData = canvasRef.current.toDataURL("image/png");
     setIsSaving(true);
 
@@ -285,8 +335,8 @@ export default function MediScriptPrescriptionCanvas() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          consultation_id: CONSULTATION_ID,
-          pharmacy_id: PHARMACY_ID,
+          consultation_id: consultationId,
+          pharmacy_id: pharmacyId,
           image_data: imageData,
           image_mime_type: "image/png",
         }),
@@ -352,9 +402,9 @@ export default function MediScriptPrescriptionCanvas() {
 
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
               <div className="text-right leading-tight">
-                <p className="font-semibold">Dr. Sarah Miller</p>
+                <p className="font-semibold">{doctorInfo.full_name}</p>
                 <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Senior Cardiologist
+                  {doctorInfo.role}
                 </p>
               </div>
               <div className="relative">
@@ -383,7 +433,7 @@ export default function MediScriptPrescriptionCanvas() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Full Name
                 </p>
-                <p className="mt-1 text-lg font-semibold">Robert J. Henderson</p>
+                <p className="mt-1 text-lg font-semibold">{patientInfo?.full_name || "—"}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4">
@@ -391,13 +441,15 @@ export default function MediScriptPrescriptionCanvas() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Age / Sex
                   </p>
-                  <p className="mt-1 font-semibold">54Y / Male</p>
+                  <p className="mt-1 font-semibold">
+                    {patientInfo?.age && patientInfo?.sex ? `${patientInfo.age}Y / ${patientInfo.sex}` : "—"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     ID
                   </p>
-                  <p className="mt-1 font-semibold">#RH-9920</p>
+                  <p className="mt-1 font-semibold">{patientInfo?.id ? `#${patientInfo.id}` : "—"}</p>
                 </div>
               </div>
 
@@ -407,12 +459,15 @@ export default function MediScriptPrescriptionCanvas() {
                   Critical Allergies
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
-                    Penicillin
-                  </span>
-                  <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
-                    Sulfa Drugs
-                  </span>
+                  {patientInfo?.allergies && patientInfo.allergies.length > 0 ? (
+                    patientInfo.allergies.map((allergy, idx) => (
+                      <span key={idx} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+                        {allergy}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-500">No allergies recorded</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -424,9 +479,7 @@ export default function MediScriptPrescriptionCanvas() {
               Last Prescription
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="font-semibold text-blue-600">Atorvastatin 20mg</p>
-              <p className="mt-2 text-sm text-slate-500">Issued: Oct 12, 2023</p>
-              <p className="text-sm text-slate-600">1 Tab Daily @ Bedtime</p>
+              <p className="font-semibold text-slate-500">No previous prescriptions</p>
             </div>
           </div>
 
@@ -670,6 +723,13 @@ export default function MediScriptPrescriptionCanvas() {
                   className="rounded-2xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Discard Changes
+                </button>
+
+                <button
+                  onClick={() => navigate("/writingpad")}
+                  className="rounded-2xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Writing Pad
                 </button>
 
                 <button
