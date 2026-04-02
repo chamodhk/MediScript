@@ -56,13 +56,19 @@ export default function MediScriptPrescriptionCanvas() {
   const lastPointRef = useRef({ x: 0, y: 0 });
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
+  // Keep a ref so event handlers always see the latest palmRejection value
+  const palmRejectionRef = useRef(palmRejection);
 
   const API_BASE = "http://127.0.0.1:8000";
 
   const colors = useMemo(() => ["#111827", "#1d4ed8", "#e11d48"], []);
   const sizes = useMemo(() => [4, 6, 10], []);
 
-  // Fetch logged-in doctor's information
+  // Keep ref in sync whenever state changes
+  useEffect(() => {
+    palmRejectionRef.current = palmRejection;
+  }, [palmRejection]);
+
   useEffect(() => {
     const fetchDoctorInfo = async () => {
       try {
@@ -78,25 +84,19 @@ export default function MediScriptPrescriptionCanvas() {
     fetchDoctorInfo();
   }, []);
 
-  // Load patient info from localStorage
   useEffect(() => {
     try {
       const savedPatient = localStorage.getItem("currentPatient");
-      if (savedPatient) {
-        setPatientInfo(JSON.parse(savedPatient));
-      }
+      if (savedPatient) setPatientInfo(JSON.parse(savedPatient));
     } catch (error) {
       console.error("Failed to load patient info:", error);
     }
   }, []);
 
-  // Load consultation ID from localStorage
   useEffect(() => {
     try {
       const savedConsultationId = localStorage.getItem("currentConsultationId");
-      if (savedConsultationId) {
-        setConsultationId(parseInt(savedConsultationId));
-      }
+      if (savedConsultationId) setConsultationId(parseInt(savedConsultationId));
     } catch (error) {
       console.error("Failed to load consultation ID:", error);
     }
@@ -120,9 +120,7 @@ export default function MediScriptPrescriptionCanvas() {
 
       if (oldImage && oldImage !== "data:,") {
         const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
+        img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         img.src = oldImage;
       }
     };
@@ -132,9 +130,7 @@ export default function MediScriptPrescriptionCanvas() {
     saveCanvasState();
     loadLatestPrescription();
 
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-    };
+    return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
   const getCoordinates = (event) => {
@@ -159,34 +155,43 @@ export default function MediScriptPrescriptionCanvas() {
   const saveCanvasState = () => {
     const canvas = canvasRef.current;
     if (!canvas || canvas.width === 0 || canvas.height === 0) return;
-
     const imageData = canvas.toDataURL("image/png");
     undoStackRef.current.push(imageData);
-
-    if (undoStackRef.current.length > 20) {
-      undoStackRef.current.shift();
-    }
+    if (undoStackRef.current.length > 20) undoStackRef.current.shift();
   };
 
   const restoreCanvasState = (imageData) => {
     const canvas = canvasRef.current;
     if (!canvas || !imageData) return;
-
     const ctx = canvas.getContext("2d");
     const img = new Image();
-
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
-
     img.src = imageData;
+  };
+
+  // ── PALM REJECTION: block if more than 1 simultaneous touch point ──────────
+  const isPalmTouch = (event) => {
+    if (!palmRejectionRef.current) return false;
+    // If it's a touch event with more than 1 finger/contact → treat as palm
+    if (event.touches && event.touches.length > 1) return true;
+    // If radiusX/radiusY are available and very large → likely a palm
+    if (event.touches && event.touches.length === 1) {
+      const touch = event.touches[0];
+      if (touch.radiusX && touch.radiusY) {
+        if (touch.radiusX > 30 || touch.radiusY > 30) return true;
+      }
+    }
+    return false;
   };
 
   const startDrawing = (event) => {
     event.preventDefault();
+    if (isPalmTouch(event)) return; // ← palm rejected
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -202,6 +207,11 @@ export default function MediScriptPrescriptionCanvas() {
   const draw = (event) => {
     if (!isDrawingRef.current) return;
     event.preventDefault();
+    if (isPalmTouch(event)) {
+      // Palm detected mid-stroke — stop the current stroke cleanly
+      stopDrawing();
+      return;
+    }
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -232,23 +242,17 @@ export default function MediScriptPrescriptionCanvas() {
     redoStackRef.current = [];
   };
 
-  const handleQuickInsert = (item) => {
-    setAddedMeds((prev) => [...prev, item]);
-  };
+  const handleQuickInsert = (item) => setAddedMeds((prev) => [...prev, item]);
 
   const handleUndo = () => {
     if (undoStackRef.current.length <= 1) return;
-
     const currentState = undoStackRef.current.pop();
     redoStackRef.current.push(currentState);
-
-    const previousState = undoStackRef.current[undoStackRef.current.length - 1];
-    restoreCanvasState(previousState);
+    restoreCanvasState(undoStackRef.current[undoStackRef.current.length - 1]);
   };
 
   const handleRedo = () => {
     if (redoStackRef.current.length === 0) return;
-
     const redoState = redoStackRef.current.pop();
     undoStackRef.current.push(redoState);
     restoreCanvasState(redoState);
@@ -257,11 +261,9 @@ export default function MediScriptPrescriptionCanvas() {
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     saveCanvasState();
     redoStackRef.current = [];
     setSavedImage("");
@@ -271,15 +273,11 @@ export default function MediScriptPrescriptionCanvas() {
     if (!consultationId) return;
     try {
       const res = await fetch(`${API_BASE}/api/prescriptions/session/${consultationId}`);
-      if (!res.ok) {
-        throw new Error("Failed to load previous prescriptions");
-      }
-
+      if (!res.ok) throw new Error("Failed to load previous prescriptions");
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const latest = data[0];
         setSavedPrescriptionId(latest.id ?? null);
-
         if (latest.image_data_b64) {
           setSavedImage(latest.image_data_b64);
           restoreCanvasState(latest.image_data_b64);
@@ -293,22 +291,13 @@ export default function MediScriptPrescriptionCanvas() {
   const handleValidateHandwriting = async () => {
     const imageData = canvasRef.current.toDataURL("image/png");
     setIsValidating(true);
-
     try {
       const res = await fetch(`${API_BASE}/api/prescriptions/validate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image_data: imageData,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_data: imageData }),
       });
-
-      if (!res.ok) {
-        throw new Error("Validation failed");
-      }
-
+      if (!res.ok) throw new Error("Validation failed");
       const data = await res.json();
       console.log("Validation result:", data);
       alert("Handwriting validated. Check console for result.");
@@ -327,13 +316,10 @@ export default function MediScriptPrescriptionCanvas() {
     }
     const imageData = canvasRef.current.toDataURL("image/png");
     setIsSaving(true);
-
     try {
       const res = await fetch(`${API_BASE}/api/prescriptions/prescription`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           consultation_id: consultationId,
           pharmacy_id: pharmacyId,
@@ -341,21 +327,13 @@ export default function MediScriptPrescriptionCanvas() {
           image_mime_type: "image/png",
         }),
       });
-
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || "Save failed");
       }
-
       const data = await res.json();
       setSavedPrescriptionId(data.id ?? null);
-
-      if (data.image_data_b64) {
-        setSavedImage(data.image_data_b64);
-      } else {
-        setSavedImage(imageData);
-      }
-
+      setSavedImage(data.image_data_b64 || imageData);
       alert("Prescription saved successfully");
       navigate("/doctor");
     } catch (error) {
@@ -366,152 +344,184 @@ export default function MediScriptPrescriptionCanvas() {
     }
   };
 
+  // ── FOCUS MODE: hides sidebar, expands canvas, removes UI distractions ──────
+  const isFocus = canvasMode === "focus";
+
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-slate-900">
-      <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 font-semibold text-blue-600">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-                <Activity className="h-5 w-5" />
-              </div>
-              <span className="text-2xl">MediScript Pro</span>
-            </div>
 
-            <nav className="hidden items-center gap-3 md:flex">
-              <button className="rounded-xl px-4 py-2 text-slate-600 hover:bg-slate-100">
-                Dashboard
-              </button>
-              <button className="rounded-xl bg-blue-50 px-4 py-2 font-medium text-blue-600">
-                Prescription Canvas
-              </button>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 lg:flex">
-              <Search className="h-4 w-4 text-slate-400" />
-              <input
-                className="w-64 bg-transparent text-sm outline-none"
-                placeholder="Search patients, records..."
-              />
-            </div>
-
-            <button className="rounded-full p-2 hover:bg-slate-100">
-              <Bell className="h-5 w-5 text-slate-500" />
-            </button>
-
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-              <div className="text-right leading-tight">
-                <p className="font-semibold">{doctorInfo.full_name}</p>
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  {doctorInfo.role}
-                </p>
-              </div>
-              <div className="relative">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-200">
-                  <User className="h-5 w-5 text-slate-600" />
+      {/* Hide header in focus mode */}
+      {!isFocus && (
+        <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3 font-semibold text-blue-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                  <Activity className="h-5 w-5" />
                 </div>
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="grid min-h-[calc(100vh-88px)] grid-cols-1 gap-6 p-6 xl:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="space-y-5">
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-4 flex items-start justify-between">
-              <h3 className="text-2xl font-bold">Patient Info</h3>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                Active Session
-              </span>
-            </div>
-
-            <div className="space-y-4 text-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Full Name
-                </p>
-                <p className="mt-1 text-lg font-semibold">{patientInfo?.full_name || "—"}</p>
+                <span className="text-2xl">MediScript Pro</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Age / Sex
-                  </p>
-                  <p className="mt-1 font-semibold">
-                    {patientInfo?.age && patientInfo?.sex ? `${patientInfo.age}Y / ${patientInfo.sex}` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    ID
-                  </p>
-                  <p className="mt-1 font-semibold">{patientInfo?.id ? `#${patientInfo.id}` : "—"}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-200 pt-4">
-                <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <Circle className="h-3 w-3 fill-rose-500 text-rose-500" />
-                  Critical Allergies
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {patientInfo?.allergies && patientInfo.allergies.length > 0 ? (
-                    patientInfo.allergies.map((allergy, idx) => (
-                      <span key={idx} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
-                        {allergy}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-slate-500">No allergies recorded</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl bg-[#f7fbff] p-5 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-4 flex items-center gap-2 font-semibold">
-              <Stethoscope className="h-4 w-4 text-blue-600" />
-              Last Prescription
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="font-semibold text-slate-500">No previous prescriptions</p>
-            </div>
-          </div>
-
-          <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h4 className="mb-4 text-lg font-semibold">Clinical Phrases</h4>
-            <div className="space-y-3">
-              {clinicalPhrases.map((phrase) => (
-                <button
-                  key={phrase}
-                  className="w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
-                >
-                  {phrase}
+              <nav className="hidden items-center gap-3 md:flex">
+                <button className="rounded-xl px-4 py-2 text-slate-600 hover:bg-slate-100">
+                  Dashboard
                 </button>
-              ))}
+                <button className="rounded-xl bg-blue-50 px-4 py-2 font-medium text-blue-600">
+                  Prescription Canvas
+                </button>
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 lg:flex">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  className="w-64 bg-transparent text-sm outline-none"
+                  placeholder="Search patients, records..."
+                />
+              </div>
+
+              <button className="rounded-full p-2 hover:bg-slate-100">
+                <Bell className="h-5 w-5 text-slate-500" />
+              </button>
+
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                <div className="text-right leading-tight">
+                  <p className="font-semibold">{doctorInfo.full_name}</p>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">
+                    {doctorInfo.role}
+                  </p>
+                </div>
+                <div className="relative">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-200">
+                    <User className="h-5 w-5 text-slate-600" />
+                  </div>
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+                </div>
+              </div>
             </div>
           </div>
-        </aside>
+        </header>
+      )}
 
+      {/* Focus mode minimal top bar */}
+      {isFocus && (
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
+          <div className="flex items-center gap-3 font-semibold text-blue-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+              <Activity className="h-4 w-4" />
+            </div>
+            <span className="text-lg">MediScript — Focus Mode</span>
+          </div>
+          <button
+            onClick={() => setCanvasMode("standard")}
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            Exit Focus
+          </button>
+        </div>
+      )}
+
+      <main
+        className={`grid min-h-[calc(100vh-88px)] gap-6 p-6 ${
+          isFocus
+            ? "grid-cols-1"                                      // full width in focus
+            : "grid-cols-1 xl:grid-cols-[290px_minmax(0,1fr)]"  // sidebar + canvas normally
+        }`}
+      >
+        {/* Sidebar — hidden in focus mode */}
+        {!isFocus && (
+          <aside className="space-y-5">
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <div className="mb-4 flex items-start justify-between">
+                <h3 className="text-2xl font-bold">Patient Info</h3>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                  Active Session
+                </span>
+              </div>
+
+              <div className="space-y-4 text-sm">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Full Name</p>
+                  <p className="mt-1 text-lg font-semibold">{patientInfo?.full_name || "—"}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Age / Sex</p>
+                    <p className="mt-1 font-semibold">
+                      {patientInfo?.age && patientInfo?.sex ? `${patientInfo.age}Y / ${patientInfo.sex}` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">ID</p>
+                    <p className="mt-1 font-semibold">{patientInfo?.id ? `#${patientInfo.id}` : "—"}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-4">
+                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <Circle className="h-3 w-3 fill-rose-500 text-rose-500" />
+                    Critical Allergies
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {patientInfo?.allergies && patientInfo.allergies.length > 0 ? (
+                      patientInfo.allergies.map((allergy, idx) => (
+                        <span key={idx} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+                          {allergy}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-500">No allergies recorded</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-[#f7fbff] p-5 shadow-sm ring-1 ring-slate-200">
+              <div className="mb-4 flex items-center gap-2 font-semibold">
+                <Stethoscope className="h-4 w-4 text-blue-600" />
+                Last Prescription
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="font-semibold text-slate-500">No previous prescriptions</p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <h4 className="mb-4 text-lg font-semibold">Clinical Phrases</h4>
+              <div className="space-y-3">
+                {clinicalPhrases.map((phrase) => (
+                  <button
+                    key={phrase}
+                    className="w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                  >
+                    {phrase}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* ── Canvas Section ── */}
         <section className="space-y-5">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <button className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-600">
-                <ArrowLeft className="h-4 w-4" />
-                Return to Session Note
-              </button>
+              {!isFocus && (
+                <button className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-600">
+                  <ArrowLeft className="h-4 w-4" />
+                  Return to Session Note
+                </button>
+              )}
               <h1 className="text-5xl font-bold tracking-tight text-slate-900">
                 Prescription Canvas
               </h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {/* ── PALM REJECTION BUTTON — now functional ── */}
               <button
                 onClick={() => setPalmRejection((v) => !v)}
                 className={`rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition ${
@@ -519,32 +529,34 @@ export default function MediScriptPrescriptionCanvas() {
                     ? "bg-blue-600 text-white"
                     : "bg-white text-slate-700 ring-1 ring-slate-200"
                 }`}
+                title={palmRejection ? "Palm Rejection is ON — multi-touch blocked" : "Palm Rejection is OFF"}
               >
-                Palm Rejection
+                {palmRejection ? "🤚 Palm Rejection: ON" : "🤚 Palm Rejection: OFF"}
               </button>
 
+              {/* ── FOCUS MODE BUTTON — now functional ── */}
               <button
-                onClick={() =>
-                  setCanvasMode((prev) =>
-                    prev === "standard" ? "focus" : "standard"
-                  )
-                }
-                className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 shadow-sm"
+                onClick={() => setCanvasMode((prev) => prev === "standard" ? "focus" : "standard")}
+                className={`rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition ${
+                  isFocus
+                    ? "bg-slate-800 text-white"
+                    : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                }`}
+                title={isFocus ? "Exit Focus Mode" : "Enter Focus Mode — hides sidebar and header"}
               >
-                {canvasMode === "standard" ? "Standard" : "Focus"}
+                {isFocus ? "⛶ Exit Focus" : "⛶ Focus Mode"}
               </button>
             </div>
           </div>
 
+          {/* Toolbar */}
           <div className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200">
             <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => setTool("pen")}
                   className={`flex min-w-[88px] flex-col items-center rounded-2xl px-4 py-3 text-xs font-semibold ${
-                    tool === "pen"
-                      ? "bg-blue-50 text-blue-600"
-                      : "bg-slate-50 text-slate-500"
+                    tool === "pen" ? "bg-blue-50 text-blue-600" : "bg-slate-50 text-slate-500"
                   }`}
                 >
                   <PenTool className="mb-1 h-4 w-4" />
@@ -554,9 +566,7 @@ export default function MediScriptPrescriptionCanvas() {
                 <button
                   onClick={() => setTool("eraser")}
                   className={`flex min-w-[88px] flex-col items-center rounded-2xl px-4 py-3 text-xs font-semibold ${
-                    tool === "eraser"
-                      ? "bg-blue-50 text-blue-600"
-                      : "bg-slate-50 text-slate-500"
+                    tool === "eraser" ? "bg-blue-50 text-blue-600" : "bg-slate-50 text-slate-500"
                   }`}
                 >
                   <Eraser className="mb-1 h-4 w-4" />
@@ -575,9 +585,7 @@ export default function MediScriptPrescriptionCanvas() {
                     >
                       <span
                         className={`block h-10 w-10 rounded-full border-4 ${
-                          brushColor === color
-                            ? "border-slate-800/90"
-                            : "border-transparent"
+                          brushColor === color ? "border-slate-800/90" : "border-transparent"
                         }`}
                         style={{ backgroundColor: color }}
                       />
@@ -593,9 +601,7 @@ export default function MediScriptPrescriptionCanvas() {
                       key={size}
                       onClick={() => setBrushSize(size)}
                       className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
-                        brushSize === size
-                          ? "bg-slate-100 ring-2 ring-blue-200"
-                          : "bg-slate-50"
+                        brushSize === size ? "bg-slate-100 ring-2 ring-blue-200" : "bg-slate-50"
                       }`}
                     >
                       <span
@@ -640,6 +646,14 @@ export default function MediScriptPrescriptionCanvas() {
               </div>
             </div>
           </div>
+
+          {/* Palm rejection status indicator */}
+          {palmRejection && (
+            <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+              <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+              Pen mode active — touch input limited.
+            </div>
+          )}
 
           <div className="rounded-[32px] bg-white shadow-xl ring-1 ring-slate-200">
             <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_220px]">
