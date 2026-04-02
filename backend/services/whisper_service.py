@@ -11,7 +11,13 @@ class WhisperService:
     def load_model(self):
         if self.model is None:
             # Use CPU by default to avoid hard CUDA requirements in local dev.
-            self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
+            hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN")
+            self.model = WhisperModel(
+                self.model_size,
+                device="cpu",
+                compute_type="int8",
+                use_auth_token=hf_token or None,
+            )
 
     def unload_model(self):
         if self.model is not None:
