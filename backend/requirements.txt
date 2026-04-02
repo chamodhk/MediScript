@@ -10,7 +10,7 @@ anyio==4.13.0
 APScheduler==3.11.0
 attrs==26.1.0
 av==17.0.0
-bcrypt
+bcrypt==3.2.2
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.6
@@ -125,4 +125,3 @@ torchvision
 torchaudio
 ollama
 pydub
-bcrypt==4.0.1
