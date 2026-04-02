@@ -10,50 +10,45 @@ class StructureService:
             print("Structuring text...")
 
             prompt = f"""
-You are a medical assistant AI.
+Extract patient instructions and follow-up actions from this doctor transcript.
+Return ONLY valid JSON with no markdown or extra text.
 
-Your task is to convert a doctor's spoken instructions into STRICT JSON format.
-
-IMPORTANT RULES:
-- Output ONLY valid JSON
-- Do NOT include explanations, notes, or extra text
-- Do NOT include markdown (no ```json)
-- Ensure JSON is properly formatted and parsable
-- If data is missing, use null or empty arrays
-
-INPUT TEXT:
+Transcript:
 \"\"\"{raw_text}\"\"\"
 
-OUTPUT FORMAT:
+JSON format:
 {{
-  "greetings": "short friendly greeting to patient",
-  "heading": "short summary of doctor's advice",
-
   "instructions": [
-    "clear instruction 1",
-    "clear instruction 2",
-    "clear instruction 3"
+    "short clear instruction for the patient"
   ],
-
   "follow_up": [
     {{
-      "type": "checkup | lab test | clinic visit",
-      "when": "time mentioned (e.g., 2 weeks, next month)"
+      "instruction_type": "lab_test | scan | clinic_visit | review | follow_up",
+      "doctor_instruction": "clear follow-up instruction for the patient",
+      "medical_time_reference": "time phrase as spoken, or null",
+      "exact_medical_datetime": null,
+      "reminder_mode": "absolute | relative | window | conditional",
+      "source_text": "source sentence from the transcript"
     }}
   ]
 }}
 
-GUIDELINES:
-- Convert medical advice into simple patient-friendly instructions
-- Keep sentences short and clear
-- Extract follow-up actions only if mentioned
-- Do NOT hallucinate missing medical info
-
-RETURN ONLY JSON.
+Rules:
+- Put medicine and general care advice in "instructions"
+- Put tests, scans, reviews, return visits, and urgent return advice in "follow_up"
+- Keep phrases like "tomorrow", "next Monday", "within one week", "after three days", or "after test results" in "medical_time_reference"
+- Do not invent exact dates or times
+- Use "exact_medical_datetime" only if the doctor explicitly gives an exact real date and time
+- Use reminder_mode:
+  - "absolute" for exact date/time
+  - "relative" for tomorrow / after 3 days / next Monday
+  - "window" for within a time range
+  - "conditional" for if symptoms worsen / after test results
+- Split advice into short items
+- If none found, return empty arrays
 """
-
             response = ollama.chat(
-                model="phi3",
+                model="phi3:latest",
                 messages=[
                     {
                         "role": "user",

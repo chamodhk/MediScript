@@ -1,5 +1,6 @@
 from models.enums import (
     ConsultationStatus,
+    ReminderMode,
     ReminderStatus,
     ReminderType,
     UserRole,
@@ -25,6 +26,7 @@ __all__ = [
     "ConsultationStatus",
     "ReminderType",
     "ReminderStatus",
+    "ReminderMode",
     "User",
     "Patient",
     "Consultation",

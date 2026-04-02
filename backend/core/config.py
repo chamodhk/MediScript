@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     LIBRETRANSLATE_URL: str = "http://localhost:5000"
 
     APP_ENV: str = "development"
+    REMINDER_TIMEZONE: str = "Asia/Colombo"
+    REMINDER_POLL_SECONDS: int = 60
 
     class Config:
         env_file = ".env"
