@@ -81,6 +81,14 @@ DEMO_PATIENTS = [
         "age": 35,
         "token": "T003",
     },
+    {
+        "name": "Chamodh Nethsara",
+        "phone": "+94703086052",
+        "preferred_language": "en",
+        "date_of_birth": date(1990, 11, 4),
+        "age": 22,
+        "token": "T004",
+    },
 ]
 
 PLACEHOLDER_PNG_BASE64 = (

@@ -1,10 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.database import get_db
 from models.twilio import SendTranscriptionRequest
+from services.reminder_flow_service import ReminderFlowService
 from services.twilio_service import send_whatsapp_message
 
 
 router = APIRouter()
+reminder_flow_service = ReminderFlowService()
 
 
 @router.get("/health")
@@ -29,3 +33,27 @@ def send_transcription_whatsapp(request: SendTranscriptionRequest) -> dict:
         "transcription": request.transcription,
         "message": message,
     }
+
+
+@router.post("/twilio/webhook")
+async def handle_twilio_webhook(
+    Body: str = Form(default=""),
+    From: str = Form(default=""),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        reply = await reminder_flow_service.handle_incoming_message(
+            db,
+            from_number=From.replace("whatsapp:", "").strip(),
+            body=Body,
+        )
+        send_whatsapp_message(
+            to_number=From,
+            message_body=reply,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return {"success": True}
