@@ -1,3 +1,7 @@
-from .translate_service import TranslationService
-from .twilio_service import send_whatsapp_message
-__all__ = ["send_whatsapp_message", "TranslationService"]
+"""Service package.
+
+Avoid eager imports here so optional integrations do not initialize during
+unrelated service imports.
+"""
+
+__all__: list[str] = []
