@@ -5,10 +5,12 @@ from core.database import get_db
 from models.twilio import SendTranscriptionRequest
 from services.reminder_flow_service import ReminderFlowService
 from services.twilio_service import send_whatsapp_message
+from services.whatsapp_channeling_service import WhatsAppChannelingService
 
 
 router = APIRouter()
 reminder_flow_service = ReminderFlowService()
+channeling_service = WhatsAppChannelingService()
 
 
 @router.get("/health")
@@ -42,11 +44,18 @@ async def handle_twilio_webhook(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        reply = await reminder_flow_service.handle_incoming_message(
+        normalized_from = From.replace("whatsapp:", "").strip()
+        reply = await channeling_service.handle_message(
             db,
-            from_number=From.replace("whatsapp:", "").strip(),
+            from_number=normalized_from,
             body=Body,
         )
+        if reply is None:
+            reply = await reminder_flow_service.handle_incoming_message(
+                db,
+                from_number=normalized_from,
+                body=Body,
+            )
         send_whatsapp_message(
             to_number=From,
             message_body=reply,
