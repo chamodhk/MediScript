@@ -3,6 +3,7 @@ import json
 import gc
 
 
+
 class StructureService:
 
     def structure(self, raw_text: str) -> dict:
@@ -48,7 +49,7 @@ Rules:
 - If none found, return empty arrays
 """
             response = ollama.chat(
-                model="phi3:latest",
+                model="phi3",
                 messages=[
                     {
                         "role": "user",

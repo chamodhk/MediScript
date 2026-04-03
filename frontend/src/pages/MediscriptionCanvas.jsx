@@ -15,15 +15,11 @@ import {
   ArrowLeft,
   Activity,
   Circle,
+  Mic,
+  Square,
 } from "lucide-react";
 import api from "../services/api";
-
-const quickInsertData = [
-  { name: "Amoxicillin", dose: "500mg" },
-  { name: "Lisinopril", dose: "20mg" },
-  { name: "Metformin", dose: "500mg" },
-  { name: "Ibuprofen", dose: "400mg" },
-];
+import { useAudioRecorder } from "../hooks/useAudioRecorder";
 
 const clinicalPhrases = [
   "Get plenty of rest",
@@ -84,6 +80,12 @@ export default function MediScriptPrescriptionCanvas() {
   const [patientInfo, setPatientInfo] = useState(null);
   const [consultationId, setConsultationId] = useState(null);
   const [pharmacyId] = useState(1);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [transcriptStatus, setTranscriptStatus] = useState(null);
+  const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
+
+  // ── Audio Recording Hook ──────────────────────────────────────────────────
+  const { isRecording, audioBlob, startRecording: recordStart, stopRecording: recordStop, setAudioBlob } = useAudioRecorder();
 
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
@@ -91,8 +93,7 @@ export default function MediScriptPrescriptionCanvas() {
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
   const palmRejectionRef = useRef(palmRejection);
-
-  const API_BASE = "http://127.0.0.1:8000";
+  const recordingIntervalRef = useRef(null);
 
   const colors = useMemo(() => ["#111827", "#1d4ed8", "#e11d48"], []);
   const sizes = useMemo(() => [4, 6, 10], []);
@@ -216,11 +217,19 @@ export default function MediScriptPrescriptionCanvas() {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     saveCanvasState();
-    loadLatestPrescription();
+    // Don't load latest prescription here - defer until consultationId is available
+    // loadLatestPrescription();
 
     return () => window.removeEventListener("resize", resizeCanvas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Load latest prescription when consultationId is available ────────────────
+  useEffect(() => {
+    if (consultationId) {
+      loadLatestPrescription();
+    }
+  }, [consultationId]);
 
   // ── Drawing helpers ────────────────────────────────────────────────────────
   const getCoordinates = (event) => {
@@ -329,10 +338,130 @@ export default function MediScriptPrescriptionCanvas() {
     redoStackRef.current = [];
   };
 
-  // ── Actions ────────────────────────────────────────────────────────────────
-  const handleQuickInsert = (item) =>
-    setAddedMeds((prev) => [...prev, item]);
+  // ── Recording Handlers (using useAudioRecorder hook) ────────────────────────
+  const sendAudioToBackend = async (audioData) => {
+    if (!audioData || !consultationId) {
+      console.warn("⚠️ Cannot send audio - Missing audioData or consultationId", {
+        hasAudioData: !!audioData,
+        consultationId
+      });
+      return;
+    }
 
+    setIsLoadingTranscript(true);
+    const audioSize = (audioData.size / 1024 / 1024).toFixed(2);
+
+    console.log("🎤 AUDIO UPLOAD STARTED", {
+      consultationId,
+      audioFormat: audioData.type,
+      audioSize: `${audioSize} MB`,
+      timestamp: new Date().toLocaleTimeString()
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioData, "recording.webm");
+
+      const response = await api.post(
+        `/transcription/transcribe/${consultationId}`,
+        formData
+      );
+
+      console.log("✅ BACKEND RESPONSE RECEIVED", {
+        status: response.status,
+        hasTranscript: !!response.data.raw_transcript,
+        transcriptLength: response.data.raw_transcript?.length || 0,
+        hasStructured: !!response.data.structured,
+        timestamp: new Date().toLocaleTimeString()
+      });
+
+      if (response.data.raw_transcript) {
+        setTranscriptStatus(response.data);
+        alert("✅ Transcription successful! Check console for details.");
+      }
+    } catch (error) {
+      console.error("❌ TRANSCRIPTION ERROR", {
+        errorMessage: error.message,
+        statusCode: error.response?.status,
+        detail: error.response?.data?.detail,
+        timestamp: new Date().toLocaleTimeString()
+      });
+      alert(`Transcription failed: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setIsLoadingTranscript(false);
+      setAudioBlob(null);
+    }
+  };
+
+  const startRecording = async () => {
+    setRecordingTime(0);
+    recordingIntervalRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    await recordStart();
+  };
+
+  const stopRecording = async () => {
+    clearInterval(recordingIntervalRef.current);
+    await recordStop();
+  };
+
+  // ── Send audio to backend when recording completes ──────────────────────────
+  useEffect(() => {
+    if (audioBlob && !isRecording && consultationId && !isLoadingTranscript) {
+      sendAudioToBackend(audioBlob);
+    }
+  }, [audioBlob, isRecording, consultationId, isLoadingTranscript]);
+
+  // ── Old Recording Handlers (COMMENTED OUT - use useAudioRecorder hook instead) ──────────────────
+  /* 
+  // const startRecording = async () => {
+  //   try {
+  //     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  //     const mediaRecorder = new MediaRecorder(stream);
+  //     mediaRecorderRef.current = mediaRecorder;
+  //     audioChunksRef.current = [];
+  //     
+  //     mediaRecorder.ondataavailable = (event) => {
+  //       audioChunksRef.current.push(event.data);
+  //     };
+  //     
+  //     mediaRecorder.onstop = () => {
+  //       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+  //       const audioUrl = URL.createObjectURL(audioBlob);
+  //       console.log('Recording saved:', audioUrl);
+  //     };
+  //     
+  //     mediaRecorder.start();
+  //     setIsRecording(true);
+  //     setRecordingTime(0);
+  //     
+  //     recordingIntervalRef.current = setInterval(() => {
+  //       setRecordingTime((prev) => prev + 1);
+  //     }, 1000);
+  //   } catch (error) {
+  //     console.error('Error accessing microphone:', error);
+  //     alert('Unable to access microphone. Please check permissions.');
+  //   }
+  // };
+
+  // const stopRecording = () => {
+  //   if (mediaRecorderRef.current && isRecording) {
+  //     mediaRecorderRef.current.stop();
+  //     mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+  //     setIsRecording(false);
+  //     if (recordingIntervalRef.current) {
+  //       clearInterval(recordingIntervalRef.current);
+  //     }
+  //   }
+  // };
+  */
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // ── Actions ────────────────────────────────────────────────────────────────
   const handleUndo = () => {
     if (undoStackRef.current.length <= 1) return;
     const currentState = undoStackRef.current.pop();
@@ -361,16 +490,14 @@ export default function MediScriptPrescriptionCanvas() {
   };
 
   const loadLatestPrescription = async () => {
-    const rawId = localStorage.getItem("currentConsultationId");
-    if (!rawId) return;
+    // Use state variable instead of localStorage
+    if (!consultationId) return;
+    
     try {
-      const res = await fetch(
-        `${API_BASE}/api/prescriptions/session/${rawId}`
-      );
-      if (!res.ok) throw new Error("Failed to load previous prescriptions");
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const latest = data[0];
+      const response = await api.get(`/prescriptions/session/${consultationId}`);
+      
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const latest = response.data[0];
         setSavedPrescriptionId(latest.id ?? null);
         if (latest.image_data_b64) {
           setSavedImage(latest.image_data_b64);
@@ -378,7 +505,7 @@ export default function MediScriptPrescriptionCanvas() {
         }
       }
     } catch (error) {
-      console.error("Load prescriptions error:", error);
+      console.error("Load prescriptions error:", error.message);
     }
   };
 
@@ -386,56 +513,62 @@ export default function MediScriptPrescriptionCanvas() {
     const imageData = canvasRef.current.toDataURL("image/png");
     setIsValidating(true);
     try {
-      const res = await fetch(`${API_BASE}/api/prescriptions/validate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_data: imageData }),
+      const response = await api.post("/prescriptions/validate", {
+        image_data: imageData,
       });
-      if (!res.ok) throw new Error("Validation failed");
-      const data = await res.json();
-      console.log("Validation result:", data);
-      alert("Handwriting validated. Check console for result.");
+      
+      console.log("✅ Validation result:", response.data);
+      alert("✅ Handwriting validated successfully! Check console for details.");
     } catch (error) {
-      console.error("Validation error:", error);
-      alert(`Failed to validate handwriting: ${error.message}`);
+      console.error("❌ Validation error:", {
+        errorMessage: error.message,
+        statusCode: error.response?.status,
+        detail: error.response?.data?.detail,
+      });
+      
+      const errorDetail = error.response?.data?.detail || error.message || "Unknown error";
+      alert(`Failed to validate handwriting: ${errorDetail}`);
     } finally {
       setIsValidating(false);
     }
   };
 
   const handleSavePrescription = async () => {
-    const rawId = localStorage.getItem("currentConsultationId");
-    if (!rawId) {
+    // Use state variable instead of localStorage for reliability
+    if (!consultationId) {
       alert(
         "Consultation ID not found. Please return to dashboard and reload patient."
       );
       return;
     }
+    
     const imageData = canvasRef.current.toDataURL("image/png");
     setIsSaving(true);
+    
     try {
-      const res = await fetch(`${API_BASE}/api/prescriptions/prescription`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          consultation_id: parseInt(rawId, 10),
-          pharmacy_id: pharmacyId,
-          image_data: imageData,
-          image_mime_type: "image/png",
-        }),
+      const response = await api.post("/prescriptions/prescription", {
+        consultation_id: consultationId,
+        pharmacy_id: pharmacyId,
+        image_data: imageData,
+        image_mime_type: "image/png",
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Save failed");
+      
+      if (response.data) {
+        setSavedPrescriptionId(response.data.id ?? null);
+        setSavedImage(response.data.image_data_b64 || imageData);
+        alert("✅ Prescription saved successfully!");
+        navigate("/doctor");
       }
-      const data = await res.json();
-      setSavedPrescriptionId(data.id ?? null);
-      setSavedImage(data.image_data_b64 || imageData);
-      alert("Prescription saved successfully");
-      navigate("/doctor");
     } catch (error) {
-      console.error("Save error:", error);
-      alert(`Failed to save prescription: ${error.message}`);
+      console.error("❌ Save prescription error:", {
+        errorMessage: error.message,
+        statusCode: error.response?.status,
+        detail: error.response?.data?.detail,
+        timestamp: new Date().toLocaleTimeString()
+      });
+      
+      const errorDetail = error.response?.data?.detail || error.message || "Unknown error";
+      alert(`Failed to save prescription: ${errorDetail}`);
     } finally {
       setIsSaving(false);
     }
@@ -838,28 +971,77 @@ export default function MediScriptPrescriptionCanvas() {
                 </button>
               </div>
 
-              {/* Quick insert sidebar */}
+              {/* Recording sidebar */}
               <div className="space-y-4">
-                <p className="pt-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">
-                  Prescribe Quick-Insert
-                </p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">
+                    Voice Recording & Transcription
+                  </p>
+                  
+                  {isRecording && (
+                    <div className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-center">
+                      <p className="text-sm font-semibold text-red-600">
+                        {formatTime(recordingTime)}
+                      </p>
+                      <p className="mt-1 flex items-center justify-center gap-2 text-xs text-red-600">
+                        <span className="animate-pulse inline-block h-2 w-2 rounded-full bg-red-600" />
+                        Recording...
+                      </p>
+                    </div>
+                  )}
 
-                {quickInsertData.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => handleQuickInsert(item)}
-                    className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100">
-                      <Pill className="h-5 w-5 text-slate-500" />
+                  {isLoadingTranscript && (
+                    <div className="mb-4 rounded-xl bg-blue-50 px-3 py-2 text-center">
+                      <p className="text-sm font-semibold text-blue-600">
+                        Processing...
+                      </p>
+                      <p className="mt-1 flex items-center justify-center gap-2 text-xs text-blue-600">
+                        <span className="animate-pulse inline-block h-2 w-2 rounded-full bg-blue-600" />
+                        Sending to transcription
+                      </p>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-500">{item.dose}</p>
+                  )}
+
+                  {transcriptStatus && !isLoadingTranscript && (
+                    <div className="mb-4 rounded-xl bg-green-50 px-3 py-2 text-center">
+                      <p className="text-xs font-semibold text-green-700">
+                        ✅ Transcription Complete
+                      </p>
+                      <p className="mt-2 max-h-20 overflow-y-auto text-xs text-green-700 bg-white rounded px-2 py-1">
+                        {transcriptStatus.raw_transcript?.substring(0, 100)}...
+                      </p>
                     </div>
-                  </button>
-                ))}
+                  )}
+                  
+                  {!isRecording && !isLoadingTranscript ? (
+                    <button
+                      onClick={startRecording}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      <Mic className="h-4 w-4" />
+                      Start Recording
+                    </button>
+                  ) : isRecording ? (
+                    <button
+                      onClick={stopRecording}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 font-semibold text-white transition hover:bg-red-700"
+                    >
+                      <Square className="h-4 w-4" />
+                      Stop Recording
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-300 px-4 py-3 font-semibold text-white cursor-not-allowed"
+                    >
+                      <Mic className="h-4 w-4" />
+                      Processing...
+                    </button>
+                  )}
+                </div>
               </div>
+
+
             </div>
 
             {/* Footer actions */}

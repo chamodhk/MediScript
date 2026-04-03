@@ -629,6 +629,12 @@ export default function MediScriptDashboard() {
   };
 
   const sendAudioToBackend = async (audioData) => {
+    /* ── SHARED FUNCTION ──────────────────────────────────────────────────────
+       This function is now also used in MediscriptionCanvas.jsx for voice
+       transcription in the prescription canvas. Both dashboard and canvas use
+       the same transcription endpoint and send audio the same way.
+       See: MediscriptionCanvas.jsx (line ~280)
+    ──────────────────────────────────────────────────────────────────────────– */
     if (!audioData || !consultationId) {
       console.warn("⚠️ Cannot send audio - Missing audioData or consultationId", {
         hasAudioData: !!audioData,
