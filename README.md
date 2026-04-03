@@ -2,6 +2,10 @@
 
 AI-powered clinical communication system for Hemas Hospitals.
 
+Full setup guide:
+
+- [Installation Guide](./docs/INSTALLATION_GUIDE.md)
+
 ---
 
 ## Portals
