@@ -48,7 +48,7 @@ Rules:
 - If none found, return empty arrays
 """
             response = ollama.chat(
-                model="phi3:latest",
+                model="gpt-oss:120b-cloud",
                 messages=[
                     {
                         "role": "user",
