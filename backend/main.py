@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from core.config import settings
 from services.scheduler_service import scheduler_service
 
-from routers import auth_router, twilio_router, prescription_router, transcription_router, patient_router, consultation_router, translation_router, pharmacy_router
+from routers import auth_router, twilio_router, prescription_router, transcription_router, patient_router, consultation_router, translation_router, pharmacy_router, symptom_triage_router
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -56,8 +56,14 @@ app.include_router(transcription_router.router, prefix="/api/transcription", tag
 app.include_router(pharmacy_router.router, prefix="/api/pharmacy", tags=["Pharmacy"])
 # app.include_router(notification_router.router, prefix="/api/notifications", tags=["Notifications"])
 
+<<<<<<< Updated upstream
 app.include_router(twilio_router, prefix="/api")
 app.include_router(translation_router, prefix="/api")
+=======
+app.include_router(twilio_router)
+app.include_router(symptom_triage_router)
+app.include_router(translation_router)
+>>>>>>> Stashed changes
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 app.include_router(patient_router.router, prefix="/api", tags=["Patient"])
 app.include_router(consultation_router.router, prefix="/api", tags=["Consultation"])

@@ -17,11 +17,19 @@ from .translation import (
     InstructionTranslationRequest,
     InstructionTranslationResponse,
 )
+from .symptom_triage import (
+    ConsultantSuggestion,
+    SymptomTriageRequest,
+    SymptomTriageResponse,
+)
 
 __all__ = [
     "SendTranscriptionRequest",
     "InstructionTranslationRequest",
     "InstructionTranslationResponse",
+    "SymptomTriageRequest",
+    "SymptomTriageResponse",
+    "ConsultantSuggestion",
     "UserRole",
     "ConsultationStatus",
     "ReminderType",
