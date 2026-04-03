@@ -7,7 +7,7 @@ from models.consultation import Consultation
 from models.patient import Patient
 from models.pharmacy import Pharmacy
 from models.prescription import Prescription
-from services.pharmacy_service import assign_pharmacy
+from services.pharmacy_service import assign_pharmacy, notify_patient_about_prescription_status
 from services.translate_service import TranslationService
 from services.twilio_service import send_whatsapp_message
 
@@ -193,6 +193,7 @@ async def update_prescription(prescription_id: int, image_data, status, db: Asyn
         row = result.scalar_one_or_none()
         if not row:
             return None
+        previous_status = row.status
         # if image_data:
             # row.image_data = image_data.encode()
         if image_data:
@@ -203,6 +204,12 @@ async def update_prescription(prescription_id: int, image_data, status, db: Asyn
             row.status = status
         await db.commit()
         await db.refresh(row)
+        if status and status != previous_status:
+            await notify_patient_about_prescription_status(
+                db,
+                prescription=row,
+                status=status,
+            )
         return row
     except Exception as e:
         await db.rollback()

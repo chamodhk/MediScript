@@ -8,6 +8,7 @@ from models.consultation import Consultation
 from models.patient import Patient
 from models.pharmacy import Pharmacy
 from models.prescription import Prescription
+from services.twilio_service import send_whatsapp_message
 
 
 ACTIVE_STATUSES = ("pending", "preparing", "ready")
@@ -16,6 +17,49 @@ STATUS_TRANSITIONS = {
     "preparing": "ready",
     "ready": "collected",
 }
+
+
+def _build_prescription_status_message(status: str) -> str | None:
+    if status == "ready":
+        return "Your prescription is ready for collection at the hospital pharmacy."
+    if status == "collected":
+        return "Your prescription has been marked as collected. Thank you."
+    return None
+
+
+async def notify_patient_about_prescription_status(
+    db: AsyncSession,
+    *,
+    prescription: Prescription,
+    status: str,
+) -> None:
+    message = _build_prescription_status_message(status)
+    if message is None:
+        return
+
+    consultation_result = await db.execute(
+        select(Consultation).where(Consultation.id == prescription.consultation_id)
+    )
+    consultation = consultation_result.scalar_one_or_none()
+    if consultation is None:
+        return
+
+    patient_result = await db.execute(
+        select(Patient).where(Patient.id == consultation.patient_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient is None or not patient.phone:
+        return
+
+    try:
+        send_whatsapp_message(
+            to_number=patient.phone,
+            message_body=message,
+        )
+    except ValueError as exc:
+        print(f"Warning: Could not send prescription status WhatsApp notification: {exc}")
+    except Exception as exc:
+        print(f"Warning: Unexpected error sending prescription status WhatsApp notification: {exc}")
 
 
 async def assign_pharmacy(db: AsyncSession) -> int:
@@ -67,6 +111,11 @@ async def advance_status(
     prescription.status = requested_status
     await db.commit()
     await db.refresh(prescription)
+    await notify_patient_about_prescription_status(
+        db,
+        prescription=prescription,
+        status=requested_status,
+    )
 
     return prescription
 
