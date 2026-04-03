@@ -12,7 +12,14 @@ from services.translate_service import TranslationService
 from services.twilio_service import send_whatsapp_message
 
 
-translator = TranslationService()
+translator: TranslationService | None = None
+
+
+def _get_translator() -> TranslationService:
+    global translator
+    if translator is None:
+        translator = TranslationService()
+    return translator
 
 
 
@@ -70,7 +77,7 @@ def _decode_image(image_data: str | None):
 def _translate_if_needed(text: str, preferred_language: str | None) -> str:
     language = (preferred_language or "en").strip().lower()
     if language == "si":
-        return translator.translate_to_sinhala(text)
+        return _get_translator().translate_to_sinhala(text)
     return text
 
 
