@@ -8,7 +8,14 @@ from services.translate_service import TranslationService
 
 
 router = APIRouter(prefix="/translation", tags=["translation"])
-translator = TranslationService()
+translator: TranslationService | None = None
+
+
+def _get_translator() -> TranslationService:
+    global translator
+    if translator is None:
+        translator = TranslationService()
+    return translator
 
 
 def normalize(text: str) -> str:
@@ -29,7 +36,7 @@ def translate_instructions(
     try:
         cleaned = [normalize(text) for text in data.instructions]
         translated = [
-            translator.translate(text, data.source_language, data.target_language)
+            _get_translator().translate(text, data.source_language, data.target_language)
             for text in cleaned
         ]
 

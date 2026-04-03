@@ -68,7 +68,14 @@ def send_whatsapp_message(
 
 from services.translate_service import TranslationService
 
-translator = TranslationService()
+translator: TranslationService | None = None
+
+
+def _get_translator() -> TranslationService:
+    global translator
+    if translator is None:
+        translator = TranslationService()
+    return translator
 
 
 def _translate_text_if_needed(text: str | None, target_language: str) -> str | None:
@@ -76,7 +83,7 @@ def _translate_text_if_needed(text: str | None, target_language: str) -> str | N
         return text
     if target_language == "en":
         return text
-    return translator.translate(text, source="en", target=target_language)
+    return _get_translator().translate(text, source="en", target=target_language)
 
 
 def build_sinhala_message(
