@@ -31,6 +31,8 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
+        "http://10.154.40.178:8000",
+        "http://10.154.40.178:5173",
         "https://miki-nonexpressive-unloveably.ngrok-free.dev"
     ]
     JWT_SECRET_KEY: str = "change-me-in-production"
