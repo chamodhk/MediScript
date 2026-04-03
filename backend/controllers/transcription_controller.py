@@ -84,6 +84,8 @@ class TranscriptionController:
         print(f"   consultation.audio_file_path = None (audio deleted)")
         print(f"   consultation.status = {consultation.status}\n")
 
+        
+
         # Step 6 - Ollama structures
         print(f"🤖 [STEP 6] Structuring With Ollama...")
         structured = self.structuring.structure(raw_text)

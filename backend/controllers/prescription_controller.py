@@ -87,34 +87,41 @@ async def _notify_patient_about_pharmacy_assignment(
     pharmacy_id: int,
     db: AsyncSession,
 ) -> None:
-    consultation_result = await db.execute(
-        select(Consultation).where(Consultation.id == consultation_id)
-    )
-    consultation = consultation_result.scalar_one_or_none()
-    if consultation is None:
-        return
+    try:
+        consultation_result = await db.execute(
+            select(Consultation).where(Consultation.id == consultation_id)
+        )
+        consultation = consultation_result.scalar_one_or_none()
+        if consultation is None:
+            return
 
-    patient_result = await db.execute(
-        select(Patient).where(Patient.id == consultation.patient_id)
-    )
-    patient = patient_result.scalar_one_or_none()
-    if patient is None or not patient.phone:
-        return
+        patient_result = await db.execute(
+            select(Patient).where(Patient.id == consultation.patient_id)
+        )
+        patient = patient_result.scalar_one_or_none()
+        if patient is None or not patient.phone:
+            return
 
-    pharmacy_result = await db.execute(
-        select(Pharmacy).where(Pharmacy.id == pharmacy_id)
-    )
-    pharmacy = pharmacy_result.scalar_one_or_none()
-    if pharmacy is None:
-        return
+        pharmacy_result = await db.execute(
+            select(Pharmacy).where(Pharmacy.id == pharmacy_id)
+        )
+        pharmacy = pharmacy_result.scalar_one_or_none()
+        if pharmacy is None:
+            return
 
-    send_whatsapp_message(
-        to_number=patient.phone,
-        message_body=_build_pharmacy_assignment_message(
-            pharmacy_name=pharmacy.name,
-            preferred_language=patient.preferred_language,
-        ),
-    )
+        send_whatsapp_message(
+            to_number=patient.phone,
+            message_body=_build_pharmacy_assignment_message(
+                pharmacy_name=pharmacy.name,
+                preferred_language=patient.preferred_language,
+            ),
+        )
+    except ValueError as e:
+        # Log but don't fail prescription save if Twilio is not configured
+        print(f"Warning: Could not send WhatsApp notification: {str(e)}")
+    except Exception as e:
+        # Log but don't fail prescription save if notification fails
+        print(f"Warning: Unexpected error sending WhatsApp notification: {str(e)}")
 
 
 async def save_prescription(consultation_id, pharmacy_id, image_data, image_mime_type, db: AsyncSession):

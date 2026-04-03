@@ -89,6 +89,14 @@ DEMO_PATIENTS = [
         "age": 22,
         "token": "T004",
     },
+    {
+        "name": "Didula Jeewandara",
+        "phone": "+94763596129",
+        "preferred_language": "en",
+        "date_of_birth": date(2003, 6, 23),
+        "age": 23,
+        "token": "T005",
+    }
 ]
 
 PLACEHOLDER_PNG_BASE64 = (

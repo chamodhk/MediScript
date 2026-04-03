@@ -583,6 +583,8 @@ export default function MediScriptDashboard() {
   const [loading, setLoading] = useState(false);
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [consultationId, setConsultationId] = useState(null);
+  const [doctor, setDoctor] = useState(null);
+  const [doctorLoading, setDoctorLoading] = useState(true);
   const intervalRef = useRef(null);
   const { isRecording, audioBlob, startRecording: recordStart, stopRecording: recordStop, setAudioBlob } = useAudioRecorder();
 
@@ -599,6 +601,20 @@ export default function MediScriptDashboard() {
       }
     };
     fetchPatients();
+  }, []);
+
+  useEffect(() => {
+    const fetchDoctorInfo = async () => {
+      try {
+        const response = await api.get("/auth/me");
+        setDoctor(response.data || {});
+      } catch (error) {
+        console.error("Failed to fetch doctor info:", error);
+      } finally {
+        setDoctorLoading(false);
+      }
+    };
+    fetchDoctorInfo();
   }, []);
 
   const loadPatient = async () => {
@@ -629,6 +645,12 @@ export default function MediScriptDashboard() {
   };
 
   const sendAudioToBackend = async (audioData) => {
+    /* ── SHARED FUNCTION ──────────────────────────────────────────────────────
+       This function is now also used in MediscriptionCanvas.jsx for voice
+       transcription in the prescription canvas. Both dashboard and canvas use
+       the same transcription endpoint and send audio the same way.
+       See: MediscriptionCanvas.jsx (line ~280)
+    ──────────────────────────────────────────────────────────────────────────– */
     if (!audioData || !consultationId) {
       console.warn("⚠️ Cannot send audio - Missing audioData or consultationId", {
         hasAudioData: !!audioData,
@@ -891,30 +913,65 @@ export default function MediScriptDashboard() {
               {/* ── IDLE STATE ── */}
               {appState === STATES.IDLE && (
                 <div className="grid-1">
-                  <div className="audio-ctrl-card">
-                    <h2 className="audio-ctrl-title">Consultation Audio Control</h2>
-                    <p className="audio-ctrl-sub">Capture the patient interaction. High-fidelity audio will be processed for AI transcription after the session concludes.</p>
-                    <button className="btn-start" onClick={() => alert("Please load a patient first!")}>
-                      <MicIcon size={18} /> Start Recording
-                    </button>
-                  </div>
                   <div className="card">
                     <div className="card-header">
                       <div className="card-header-left">
-                        <FileIcon size={16} />
+                        <UserIcon size={16} />
                         <div>
-                          <div className="card-title">Live Transcript</div>
-                          <div className="card-sub">Post-recording AI generation</div>
+                          <div className="card-title">Doctor Profile</div>
+                          <div className="card-sub">Your account information</div>
                         </div>
                       </div>
-                      <button className="reload-btn"><RefreshIcon size={13} /> Reload</button>
                     </div>
-                    <div className="transcript-empty">
-                      <div className="icon-circle">
-                        <InfoCircleIcon size={20} />
-                      </div>
-                      <div className="empty-title">No transcription yet</div>
-                      <div className="empty-sub">Begin a recording session. The AI will generate a detailed transcript once you stop the capture.</div>
+                    <div className="card-body">
+                      {doctorLoading ? (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                          Loading doctor information...
+                        </div>
+                      ) : doctor ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ width: 50, height: 50, borderRadius: "50%",
+                              background: "linear-gradient(135deg, #60a5fa, #818cf8)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              color: "#fff", fontWeight: 700, fontSize: 16 }}>
+                              {doctor.first_name?.[0] || "D"}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+                                Dr. {doctor.first_name} {doctor.last_name || ""}
+                              </div>
+                              <div style={{ fontSize: 13, color: "#64748b" }}>
+                                {doctor.specialization || "Medical Professional"}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Email</div>
+                                <div style={{ fontSize: 13, color: "#0f172a" }}>{doctor.email || "N/A"}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Phone</div>
+                                <div style={{ fontSize: 13, color: "#0f172a" }}>{doctor.phone || "N/A"}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Role</div>
+                                <div style={{ fontSize: 13, color: "#0f172a", textTransform: "capitalize" }}>{doctor.role || "Doctor"}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>License</div>
+                                <div style={{ fontSize: 13, color: "#0f172a" }}>{doctor.license_number || "N/A"}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                          Unable to load doctor information
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -922,44 +979,7 @@ export default function MediScriptDashboard() {
 
               {/* ── READY STATE ── */}
               {appState === STATES.READY && (
-                <div className="grid-2">
-                  <div className="card">
-                    <div className="card-header">
-                      <div className="card-header-left">
-                        <MicIcon size={15} />
-                        <div className="card-title">Session Control</div>
-                      </div>
-                    </div>
-                    <div className="card-body" style={{ textAlign: "center", padding: "40px 20px" }}>
-                      <div style={{ width: 80, height: 80, borderRadius: "50%",
-                        background: "#eff6ff", border: "1.5px solid #bfdbfe",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        margin: "0 auto 16px" }}>
-                        <MicIcon size={32} color="#2563eb" />
-                      </div>
-                      <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Ready to Start</div>
-                      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 24, lineHeight: 1.5 }}>
-                        Press the button below to begin the post-recording AI session.
-                      </div>
-                      <button className="btn-start" onClick={startRecording}>
-                        <MicIcon size={16} /> Start Recording
-                      </button>
-                    </div>
-                  </div>
-                  <div className="card">
-                    <div className="card-header">
-                      <div className="card-header-left">
-                        <FileIcon size={16} />
-                        <div className="card-title">Live Transcript</div>
-                      </div>
-                      <button className="reload-btn"><RefreshIcon size={13} /> Reload</button>
-                    </div>
-                    <div className="transcript-empty">
-                      <div className="empty-sub" style={{ marginTop: 20, color: "#94a3b8" }}>
-                        No transcript data available. Start recording to capture a consultation.
-                      </div>
-                    </div>
-                  </div>
+                <div className="grid-1">
                 </div>
               )}
 
@@ -1002,17 +1022,50 @@ export default function MediScriptDashboard() {
                   <div className="card">
                     <div className="card-header">
                       <div className="card-header-left">
-                        <FileIcon size={16} />
-                        <div className="card-title">Live Transcript</div>
+                        <UserIcon size={16} />
+                        <div>
+                          <div className="card-title">Doctor Profile</div>
+                          <div className="card-sub">Your account information</div>
+                        </div>
                       </div>
-                      <button className="reload-btn"><RefreshIcon size={13} /> Reload</button>
                     </div>
-                    <div className="listening-state">
-                      <div className="mic-ring">
-                        <MicIcon size={26} color="#2563eb" />
-                      </div>
-                      <div className="listening-title">Listening...</div>
-                      <div className="listening-sub">Recording is in progress.</div>
+                    <div className="card-body">
+                      {doctor ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ width: 50, height: 50, borderRadius: "50%",
+                              background: "linear-gradient(135deg, #60a5fa, #818cf8)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              color: "#fff", fontWeight: 700, fontSize: 16 }}>
+                              {doctor.first_name?.[0] || "D"}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+                                Dr. {doctor.first_name} {doctor.last_name || ""}
+                              </div>
+                              <div style={{ fontSize: 13, color: "#64748b" }}>
+                                {doctor.specialization || "Medical Professional"}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Email</div>
+                                <div style={{ fontSize: 12, color: "#0f172a" }}>{doctor.email || "N/A"}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Phone</div>
+                                <div style={{ fontSize: 12, color: "#0f172a" }}>{doctor.phone || "N/A"}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                          Unable to load doctor information
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1035,9 +1088,6 @@ export default function MediScriptDashboard() {
                           </div>
                         </div>
                       </div>
-                      <button className="btn-primary" onClick={newSession}>
-                        <MicIcon size={14} /> Start New Recording
-                      </button>
                     </div>
                     <div className="card">
                       <div className="card-header">
