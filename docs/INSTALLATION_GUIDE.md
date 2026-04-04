@@ -418,7 +418,7 @@ TWILIO_AUTH_TOKEN=your_auth_token_here
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 ```
 
-Find these values in **Twilio Console → Account → General Settings**. Restart the backend after saving.
+Find these values in **https://console.twilio.com/us1/account/keys-credentials/api-keys**. Restart the backend after saving.
 
 ### 8.4 Join the Twilio sandbox
 

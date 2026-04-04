@@ -1,7 +1,8 @@
 import json
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -11,7 +12,7 @@ def load_env_file(env_path: str | Path = Path(__file__).resolve().parents[1] / "
     if not path.exists():
         return
 
-    for raw_line in path.read_text().splitlines():
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -26,7 +27,7 @@ class Settings(BaseSettings):
     #     "http://localhost:5173",
     #     "http://127.0.0.1:5173"
     #     ]
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",
@@ -35,6 +36,24 @@ class Settings(BaseSettings):
         "http://10.154.40.178:5173",
         "https://miki-nonexpressive-unloveably.ngrok-free.dev"
     ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors(cls, v: object) -> List[str]:
+        if isinstance(v, list):
+            return [str(o).rstrip("/") for o in v]
+        if isinstance(v, str):
+            raw = v.strip()
+            if not raw:
+                return []
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                parsed = [item.strip() for item in raw.split(",") if item.strip()]
+            if isinstance(parsed, list):
+                return [str(o).rstrip("/") for o in parsed]
+        return []
+
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
@@ -55,24 +74,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
-    @classmethod
-    def parse_cors_origins(cls, value: object) -> List[str]:
-        if isinstance(value, list):
-            return [str(origin).rstrip("/") for origin in value]
-        if isinstance(value, str):
-            raw_value = value.strip()
-            if not raw_value:
-                return []
-            try:
-                parsed = json.loads(raw_value)
-            except json.JSONDecodeError:
-                parsed = [item.strip() for item in raw_value.split(",") if item.strip()]
-            if isinstance(parsed, list):
-                return [str(origin).rstrip("/") for origin in parsed]
-        return cls.model_fields["CORS_ORIGINS"].default
-
-    def model_post_init(self, __context) -> None:
-        self.CORS_ORIGINS = self.parse_cors_origins(self.CORS_ORIGINS)
 
 
 load_env_file()

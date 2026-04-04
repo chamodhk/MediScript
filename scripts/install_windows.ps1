@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     MediScript Windows installer — uv + Python 3.13
@@ -84,7 +84,8 @@ function Update-SessionPath {
     $machine = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
     $user    = [System.Environment]::GetEnvironmentVariable("Path", "User")
     $env:Path = "$machine;$user;$env:LOCALAPPDATA\Microsoft\WinGet\Packages;" +
-                "$env:USERPROFILE\.local\bin;$env:USERPROFILE\.cargo\bin"
+                "$env:USERPROFILE\.local\bin;$env:USERPROFILE\.cargo\bin;" +
+                "$env:LOCALAPPDATA\Programs\Ollama"
 }
 
 function Invoke-Cmd {
@@ -98,7 +99,7 @@ function Invoke-Cmd {
 
 # ── Step 1: Platform check ─────────────────────────────────────────────────────
 Write-Log "Checking platform"
-if (-not $IsWindows -and $PSVersionTable.PSVersion.Major -ge 6) {
+if ($PSVersionTable.PSVersion.Major -ge 6 -and -not $IsWindows) {
     Write-Fail "This script is for Windows only. Use install_fresh_local.sh on Linux/macOS."
 }
 Write-Ok "Windows detected"
@@ -189,7 +190,8 @@ Write-Log "Checking uv"
 Update-SessionPath
 if (-not (Test-Command "uv")) {
     Write-Log "Installing uv"
-    $uvInstall = (Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -UseBasicParsing).Content
+    $uvRaw = (Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -UseBasicParsing).Content
+    $uvInstall = if ($uvRaw -is [byte[]]) { [System.Text.Encoding]::UTF8.GetString($uvRaw) } else { $uvRaw }
     Invoke-Expression $uvInstall
     Update-SessionPath
 }
@@ -244,7 +246,7 @@ if (Test-Path $BackendEnv) {
     Write-Ok "Keeping existing backend .env"
 } else {
     Write-Log "Writing default backend .env"
-    @"
+    $envContent = @"
 DATABASE_URL=sqlite+aiosqlite:///./mediscript.db
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173
 JWT_SECRET_KEY=mediscript-local-dev-secret-please-change
@@ -260,7 +262,8 @@ LIBRETRANSLATE_URL=http://localhost:5000
 APP_ENV=development
 REMINDER_TIMEZONE=Asia/Colombo
 REMINDER_POLL_SECONDS=60
-"@ | Set-Content -Encoding UTF8 $BackendEnv
+"@
+    [System.IO.File]::WriteAllText($BackendEnv, $envContent, [System.Text.UTF8Encoding]::new($false))
     Write-Ok "backend\.env written"
 }
 
@@ -317,7 +320,7 @@ if ($LASTEXITCODE -ne 0) {
     Get-Content $CpuReqFile | ForEach-Object {
         $pkg = $_.Trim()
         if ($pkg -and -not $pkg.StartsWith('#')) {
-            uv pip install --python $VenvPython $pkg 2>$null
+            uv pip install --python $VenvPython $pkg 2>&1 | Out-Null
         }
     }
 }
@@ -331,11 +334,18 @@ if ($TorchVer)       { $TorchPackages[0] = "torch==$TorchVer" }
 if ($TorchaudioVer)  { $TorchPackages[1] = "torchaudio==$TorchaudioVer" }
 if ($TorchvisionVer) { $TorchPackages[2] = "torchvision==$TorchvisionVer" }
 
-$torchResult = uv pip install --python $VenvPython --extra-index-url $TorchIndex @TorchPackages 2>&1
-if ($LASTEXITCODE -ne 0) {
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+uv pip install --python $VenvPython --extra-index-url $TorchIndex @TorchPackages
+$torchExit = $LASTEXITCODE
+$ErrorActionPreference = $prevEAP
+if ($torchExit -ne 0) {
     Write-Warn "Pinned torch version not found in index — installing latest stable torch"
+    $ErrorActionPreference = "Continue"
     uv pip install --python $VenvPython --extra-index-url $TorchIndex torch torchaudio torchvision
-    if ($LASTEXITCODE -ne 0) {
+    $torchExit = $LASTEXITCODE
+    $ErrorActionPreference = $prevEAP
+    if ($torchExit -ne 0) {
         Write-Warn "torch install failed. Transcription features may not work."
     }
 }
@@ -543,34 +553,96 @@ Write-Host "  Frontend: $FrontendDir"
 Write-Host "  Database: $BackendDir\mediscript.db"
 Write-Host "  Python:   $PythonVersion ($VenvDir)"
 Write-Host ""
-Write-Host "── Start services (run each in a separate terminal) ────────────" -ForegroundColor Cyan
+Write-Host "── 1. Run the backend ───────────────────────────────────────────" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  1. Ollama (AI structuring):"
-Write-Host "       $ScriptsDir\start_ollama.bat"
-Write-Host "       # First time only: ollama pull $OllamaModel"
+Write-Host "  Open a terminal and run:"
 Write-Host ""
-Write-Host "  2. Backend API (http://localhost:8000):"
-Write-Host "       $ScriptsDir\start_backend.bat"
+Write-Host "    cd $BackendDir"
+Write-Host "    .\.venv\Scripts\activate"
+Write-Host "    python run.py"
 Write-Host ""
-Write-Host "  3. Frontend (https://localhost:5173):"
-Write-Host "       $ScriptsDir\start_frontend.bat"
+Write-Host "  Or use the convenience script (no activation needed):"
+Write-Host "    $ScriptsDir\start_backend.bat"
 Write-Host ""
-Write-Host "  4. ngrok (Twilio WhatsApp webhook tunnel):"
-Write-Host "       $ScriptsDir\start_ngrok.bat"
-Write-Host "       # Copy the HTTPS URL shown, e.g. https://abc123.ngrok-free.app"
+Write-Host "  API will be available at: http://localhost:8000"
+Write-Host "  Interactive API docs:     http://localhost:8000/docs"
 Write-Host ""
-Write-Host "── Twilio sandbox webhook setup ─────────────────────────────────" -ForegroundColor Cyan
+Write-Host "── 2. Run the frontend ──────────────────────────────────────────" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  1. Start ngrok:   $ScriptsDir\start_ngrok.bat"
-Write-Host "  2. Copy the HTTPS forwarding URL from ngrok's output"
-Write-Host "  3. Go to: https://console.twilio.com -> Messaging -> Try it out"
-Write-Host "            -> Send a WhatsApp message -> Sandbox Configuration"
-Write-Host "  4. Set 'WHEN A MESSAGE COMES IN' to:"
-Write-Host "       https://<your-ngrok-id>.ngrok-free.app/api/twilio/webhook"
-Write-Host "  5. Set HTTP method to: POST"
-Write-Host "  6. Add credentials to: $BackendEnv"
-Write-Host "       TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxx"
-Write-Host "       TWILIO_AUTH_TOKEN=your_auth_token"
+Write-Host "  Open a second terminal and run:"
+Write-Host ""
+Write-Host "    cd $FrontendDir"
+Write-Host "    npm run dev"
+Write-Host ""
+Write-Host "  Or use the convenience script:"
+Write-Host "    $ScriptsDir\start_frontend.bat"
+Write-Host ""
+Write-Host "  App will be available at: https://localhost:5173"
+Write-Host "  (Accept the self-signed certificate warning in your browser)"
+Write-Host ""
+Write-Host "── 3. Expose backend with ngrok (for Twilio WhatsApp) ───────────" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Open a third terminal and run:"
+Write-Host ""
+Write-Host "    ngrok http 8000"
+Write-Host ""
+Write-Host "  Or use the convenience script:"
+Write-Host "    $ScriptsDir\start_ngrok.bat"
+Write-Host ""
+Write-Host "  ngrok will show a Forwarding URL like:"
+Write-Host "    https://abc123.ngrok-free.app  ->  http://localhost:8000"
+Write-Host ""
+Write-Host "  Copy that HTTPS URL, then configure Twilio:"
+Write-Host "    1. Go to https://console.twilio.com"
+Write-Host "       -> Messaging -> Try it out -> Send a WhatsApp message"
+Write-Host "       -> Sandbox Configuration"
+Write-Host "    2. Set 'WHEN A MESSAGE COMES IN' to:"
+Write-Host "         https://<your-ngrok-id>.ngrok-free.app/api/twilio/webhook"
+Write-Host "    3. Set HTTP method to: POST"
+Write-Host "    4. Add your Twilio credentials to $BackendEnv :"
+Write-Host "         TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxx"
+Write-Host "         TWILIO_AUTH_TOKEN=your_auth_token"
+Write-Host ""
+Write-Host "  NOTE: ngrok free tier gives a new random URL every restart."
+Write-Host "        Update the Twilio webhook URL each time you restart ngrok."
+Write-Host "        Sign up at https://ngrok.com for a stable subdomain."
+Write-Host ""
+Write-Host "── 4. Ollama — AI model setup ───────────────────────────────────" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  STEP 1 — Install Ollama (if not already installed):"
+Write-Host ""
+Write-Host "    winget install --id Ollama.Ollama --accept-package-agreements --accept-source-agreements"
+Write-Host ""
+Write-Host "    Then CLOSE and REOPEN this terminal so Ollama is on your PATH."
+Write-Host ""
+Write-Host "  STEP 2 — Start the Ollama service:"
+Write-Host ""
+Write-Host "    ollama serve"
+Write-Host ""
+Write-Host "  Or use the convenience script (starts serve for you):"
+Write-Host "    $ScriptsDir\start_ollama.bat"
+Write-Host ""
+Write-Host "  STEP 3 — Pull a model (choose one, run once):"
+Write-Host ""
+Write-Host "    ollama pull phi3       # fast, lightweight — good for most machines"
+Write-Host "    ollama pull qwen2:7b   # more accurate — needs a stronger machine"
+Write-Host ""
+Write-Host "  STEP 4 — Update OLLAMA_MODEL in $BackendEnv"
+Write-Host "           to match whichever model you pulled, e.g.:"
+Write-Host "             OLLAMA_MODEL=phi3"
+Write-Host "             OLLAMA_MODEL=qwen2:7b"
+Write-Host ""
+Write-Host "  -- Cloud model (runs on Ollama Cloud, no GPU needed) --" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "    1. Sign in to your Ollama account:"
+Write-Host "         ollama login"
+Write-Host "         # Opens a browser — log in and authorise the CLI when prompted."
+Write-Host ""
+Write-Host "    2. Pull the cloud model:"
+Write-Host "         ollama pull gpt-oss:120b-cloud"
+Write-Host ""
+Write-Host "    3. Update OLLAMA_MODEL in $BackendEnv :"
+Write-Host "         OLLAMA_MODEL=gpt-oss:120b-cloud"
 Write-Host ""
 Write-Host "── Demo credentials ─────────────────────────────────────────────" -ForegroundColor Cyan
 Write-Host ""
@@ -582,11 +654,8 @@ Write-Host "  pharmacy2@mediscript.com   / password@123   -> /pharmacy/2"
 Write-Host ""
 Write-Host "── Notes ────────────────────────────────────────────────────────" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  * The frontend uses self-signed HTTPS (accept the cert warning in browser)."
 Write-Host "  * Whisper downloads the 'small' model on first transcription (~244 MB)."
 Write-Host "  * The NLLB translation model downloads on first use (~1.2 GB)."
-Write-Host "  * ngrok free tier gives a new random URL each restart — update Twilio webhook accordingly."
-Write-Host "  * Twilio WhatsApp features need credentials in: $BackendEnv"
 Write-Host "  * To reseed demo data: .\install_windows.ps1 -ForceReseed"
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Green
