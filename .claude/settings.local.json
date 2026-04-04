@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(powershell.exe -Command '& { $null = [System.Management.Automation.Language.Parser]::ParseFile\\('\\\\''C:\\\\Users\\\\Chamodh\\\\Mediscript\\\\scripts\\\\install_windows.ps1'\\\\'', [ref]$null, [ref]$null\\) }')",
-      "Bash(powershell.exe -Command ':*)"
-    ]
-  }
-}

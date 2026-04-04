@@ -239,3 +239,4 @@ temp/*.ogg
 *.db
 
 backend/mediscript.db*
+.claude/
