@@ -49,10 +49,10 @@ Rules:
 - If none found, return empty arrays
 """
             response = ollama.chat(
-                #model="phi3",  #use this if you want to quick results and if your machine doesn't support heavy models
+                #model="gpt-oss:120b-cloud", #use this when you want quick results, but this runs on the cloud so you need to sign in to ollama first.
+                model="phi3",  #use this if you want to quick results and if your machine doesn't support heavy models
                 #model="qwen2:7b" #use this for more accurate results
 
-                model="gpt-oss:120b-cloud", #use this when you want quick results, but this runs on the cloud so you need to sign in to ollama first.
                 messages=[
                     {
                         "role": "user",
