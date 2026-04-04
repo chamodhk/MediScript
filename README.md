@@ -52,9 +52,12 @@ ollama login                        # opens browser to log in
 ollama pull gpt-oss:120b-cloud
 ```
 
-Then set `OLLAMA_MODEL` in `backend\.env` to match whichever model you pulled:
-```
-OLLAMA_MODEL=phi3
+Then activate the model in `backend\services\structure_service.py` by uncommenting the line for the model you pulled (only one line should be active at a time):
+
+```python
+# model="gpt-oss:120b-cloud",  # cloud — needs ollama login
+model="phi3",                   # fast, lightweight
+# model="qwen2:7b"              # more accurate
 ```
 
 ### 2. Backend API
@@ -153,7 +156,8 @@ Set in `backend\.env` (created automatically by the install script):
 | `TWILIO_WHATSAPP_FROM`      | WhatsApp sandbox number                              |
 | `WHISPER_MODEL`             | Whisper model size (`small`)                         |
 | `OLLAMA_BASE_URL`           | Ollama API endpoint (`http://localhost:11434`)       |
-| `OLLAMA_MODEL`              | Ollama model name (`phi3`, `qwen2:7b`, etc.)         |
+
+> **Model selection** is not done via `.env` — it is hardcoded in `backend/services/structure_service.py`. Uncomment the model line you want to use.
 
 ---
 

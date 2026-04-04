@@ -216,16 +216,14 @@ ollama login                         # opens browser to ollama.com — log in an
 ollama pull gpt-oss:120b-cloud
 ```
 
-### 5.4 Update your .env
+### 5.4 Activate the model in structure_service.py
 
-Edit `backend\.env` and set `OLLAMA_MODEL` to match the model you pulled:
+Model selection is **not** done via `.env` — it is set directly in `backend\services\structure_service.py`. Open that file and uncomment the line for the model you pulled (keep only one line active):
 
-```env
-OLLAMA_MODEL=phi3
-# or
-OLLAMA_MODEL=qwen2:7b
-# or
-OLLAMA_MODEL=gpt-oss:120b-cloud
+```python
+# model="gpt-oss:120b-cloud",  # cloud — needs ollama login first
+model="phi3",                   # fast, lightweight — good for most machines
+# model="qwen2:7b"              # more accurate — needs a stronger machine
 ```
 
 ---
@@ -386,8 +384,9 @@ TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 WHISPER_MODEL=small
 
 # ── Ollama (consultation structuring) ─────────────────────────────────────────
+# OLLAMA_BASE_URL controls where the backend connects to Ollama.
+# Model selection is done in backend/services/structure_service.py, not here.
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=phi3
 
 # ── Application ───────────────────────────────────────────────────────────────
 APP_ENV=development
@@ -499,7 +498,7 @@ If accessing from another device on the LAN, replace `localhost` with the host m
 1. Confirm Ollama is running: open `http://localhost:11434` in a browser — it should show `Ollama is running`
 2. Confirm your model is installed: `ollama list`
 3. If missing, pull it: `ollama pull phi3`
-4. Confirm `OLLAMA_MODEL` in `backend\.env` matches the installed model name exactly
+4. Confirm the correct model line is uncommented in `backend\services\structure_service.py`
 5. If Ollama is not installed, run: `winget install --id Ollama.Ollama --accept-package-agreements --accept-source-agreements`
 
 ---
