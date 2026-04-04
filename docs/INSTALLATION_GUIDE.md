@@ -407,6 +407,7 @@ Copy the `https://...ngrok-free.app` URL.
    ```
 5. Set the HTTP method to **POST**
 6. Click **Save**
+7. ![](https://github.com/chamodhk/MediScript/blob/main/docs/Screenshot%202026-04-04%20053953.png)
 
 ### 8.3 Add Twilio credentials to the backend
 
