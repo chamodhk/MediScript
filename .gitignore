@@ -238,5 +238,4 @@ temp/*.ogg
 #database
 *.db
 
-*.png
 backend/mediscript.db*
